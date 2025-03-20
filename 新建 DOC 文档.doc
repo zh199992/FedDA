@@ -1,0 +1,2 @@
+# 忽略所有 processed 文件夹下的 .pt 文件
+data/CMAPSSData/processed/**/*.pt

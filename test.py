@@ -1,63 +1,90 @@
-import torch.nn as nn
-import torch
-# m = nn.Conv1d(16, 33, 3, stride=2)
-# input = torch.randn(20, 16, 50)
-# print(m(input).size())
-# a=torch.tensor([[[[1,2,3],[4,5,6]]]],dtype=torch.float32)
-# conv=nn.Conv1d(in_channels=1,out_channels=2,kernel_size=2)
-# pool=nn.AdaptiveMaxPool1d(output_size=1)
-# print(pool(a))
-# print(conv(a))
-import tensorflow as tf
 import numpy as np
-inputt = data = tf.constant(
-    [[[1.0] * 14 for _ in range(30)]],  # 30 行 14 列的全零矩阵
-    dtype=tf.float32
-)
-print(inputt.shape)
-conv_layer = tf.keras.layers.Conv1D(filters=10, kernel_size=3, activation='tanh',                            kernel_initializer='glorot_uniform')
-x = conv_layer(inputt)
-print(x.shape)      # 输出: (1,30,10)
+import matplotlib.pyplot as plt
+from sklearn.manifold import TSNE
+from sklearn.preprocessing import MinMaxScaler
+import matplotlib.cm as cm
+import matplotlib.colors as mcolors
+import os
+import torch
+from models import model
+from models.model_fedrul import ClientCAE
+# 示例数据（替换为你的数据）
 
-kernel, bias = conv_layer.get_weights()
-conv_layer2 = tf.keras.layers.Conv1D(filters=10, kernel_size=10, activation='tanh', padding='same',
-                           kernel_initializer='glorot_uniform')
-x = conv_layer2(x)
-print(x.shape)      # 输出: (10,)
-kernel2, bias2 = conv_layer.get_weights()
-print("卷积核形状:", kernel.shape)  # 输出: (10, 14, 10) 10步，14个通道 10个卷积核
-print("偏置形状:", bias.shape)      # 输出: (10,)
-print("卷积核形状:", kernel2.shape)  # 输出: (10, 14, 10)
-print("偏置形状:", bias2.shape) #(10,)
+input=torch.randn(10,2,20000).to('cuda:0')
+mymodel=ClientCAE().to('cuda:0')
+output=mymodel(input)
+print(output[0].shape,output[1].shape)
 
-aa=torch.randn(10,1,30,14) #batch channel time feature
-conv=nn.Conv2d(in_channels=1,out_channels=10,kernel_size=(10,1),padding='same')
-print(conv(aa).shape)
-conv2=nn.Conv2d(in_channels=1,out_channels=10,kernel_size=(10,1))
-print(conv2(aa).shape)
+train_data_dir = os.path.join('/home/zhouheng/project/FedDA/data', "CMAPSSData", 'processed', "18-[0,1]") + '/'
+X = torch.load(train_data_dir + "train_FD002" + "feature" + str(18) + '.pt')
+indices = torch.randperm(X.size(0))[:1000]
+# 使用索引采样
+sampled_data = X[indices].to('cuda:0')
+y=torch.load(train_data_dir + "train_FD002" +"label"+ str(18)+'.pt')[indices].numpy()
+best_model_path = '/home/zhouheng/project/FedDA/models/weights/' + 'local' + '/' + 'GHDR_FL18' + f"_{2}"
+global_model0 = model.GHDR_FL(18).to('cuda:0')
+global_model0.load_state_dict(torch.load(best_model_path))
+global_model=model.GHDR_test(18).to('cuda:0')
+global_model.mode = global_model0.mode
+global_model.input_size = global_model0.input_size
+global_model.filter_num = global_model0.filter_num
+global_model.filter_length = global_model0.filter_length
+global_model.F=global_model0.F
+global_model.LHDR=global_model0.LHDR
+global_model.GRU=global_model0.unique[0]
+_,shallow,middle=global_model(sampled_data)
+# t-SNE 降维
+tsne = TSNE(n_components=2, random_state=42)
+sampled_data=sampled_data.reshape(sampled_data.size(0),-1)
+shallow=shallow.reshape(shallow.size(0),-1)
+middle=middle.reshape(middle.size(0),-1)
+raw_embedded = tsne.fit_transform(sampled_data.cpu().detach().numpy())
+shallow_embedded = tsne.fit_transform(shallow.cpu().detach().numpy())
+middle_embedded = tsne.fit_transform(middle.cpu().detach().numpy())
 
-aa=torch.randn(18,14,30)   # batch channel time
-conv=nn.Conv1d(in_channels=14,out_channels=10,kernel_size=3)  #(10,10,28)
-print(conv(aa).shape)
+fig, axes = plt.subplots(1, 3, figsize=(14, 6))
+norm = mcolors.Normalize(vmin=0, vmax=125)
+cmap = cm.get_cmap('viridis')
+# 第一组图
+sc1 = axes[0].scatter(raw_embedded[:, 0], raw_embedded[:, 1], c=y, cmap=cmap, norm=norm, s=10)
+axes[0].set_title("raw_data")
+axes[0].set_xlabel("Dim 1")
+axes[0].set_ylabel("Dim 2")
 
-fl=nn.Flatten()
-print(fl(aa).shape)
+sc2 = axes[1].scatter(shallow_embedded[:, 0], shallow_embedded[:, 1], c=y, cmap=cmap, norm=norm, s=10)
+axes[1].set_title("shallow_Feature")
+axes[1].set_xlabel("Dim 1")
+axes[1].set_ylabel("Dim 2")
 
+# 第二组图
+sc3 = axes[2].scatter(middle_embedded[:, 0], middle_embedded[:, 1], c=y, cmap=cmap, norm=norm, s=10)
+axes[2].set_title("middle_feature")
+axes[2].set_xlabel("Dim 1")
+axes[2].set_ylabel("Dim 2")
 
-def __getitem__(idx):
-    for i, size in enumerate([10,15,20,25]):
-        if idx < size:
-            return i  # 返回数据、标签和域索引
-        idx -= size
+# 添加公共colorbar
+cbar = fig.colorbar(cm.ScalarMappable(norm=norm, cmap=cmap), ax=axes, orientation='vertical', fraction=0.02)
+cbar.set_label("Label (0–125)")
 
-print(__getitem__(15))
-from itertools import zip_longest
-for idx, i in enumerate(range(10)):
-    print(idx,i)
-
-print(aa.size(0))
-bbbbb=torch.tensor([[0,1],[1,1],[2,1],[3,1],[0,5]])
-bbb=torch.unique(bbbbb)
-print(bbbbb.size())
-ccc=torch.tensor([[0],[1],[2],[3],[0]])
-print(ccc[ccc==2])
+plt.tight_layout()
+plt.show()
+# # 创建归一化器和 colormap
+# norm = mcolors.Normalize(vmin=0, vmax=125)
+# cmap = cm.get_cmap('viridis')
+#
+# # 显式创建图形和坐标轴
+# fig, ax = plt.subplots(figsize=(8, 6))
+#
+# # 绘制散点图
+# sc = ax.scatter(shallow_embedded[:, 0], shallow_embedded[:, 1], c=y, cmap=cmap, norm=norm, s=10)
+#
+# # 添加 colorbar，并与 ax 绑定
+# cbar = fig.colorbar(sc, ax=ax)
+# cbar.set_label('Label (0–125)')
+#
+# ax.set_title("t-SNE Visualization with Labels 0–125")
+# ax.set_xlabel("Dimension 1")
+# ax.set_ylabel("Dimension 2")
+#
+# plt.tight_layout()
+# plt.show()

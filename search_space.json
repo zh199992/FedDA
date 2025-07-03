@@ -1,0 +1,30 @@
+{
+  "aim": {
+    "_type": "choice",
+    "_value": ["test_nni"]
+  },
+  "global_rounds": {
+    "_type": "choice",
+    "_value": [2]
+  },
+  "local_learning_rate": {
+    "_type": "choice",
+    "_value": ["0.001,0.001", "0.0005,0.0005", "0.005,0.005"]
+  },
+  "batch_size_client": {
+    "_type": "choice",
+    "_value": [1024]
+  },
+  "local_epochs": {
+    "_type": "choice",
+    "_value": ["1,1"]
+  },
+  "lrd_c": {
+    "_type": "choice",
+    "_value": [0.1]
+  },
+  "EDS": {
+    "_type": "choice",
+    "_value": [true, false]
+  }
+}

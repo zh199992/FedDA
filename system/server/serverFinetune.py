@@ -1,4 +1,4 @@
-from system.client.clientFedAvg import clientAvg
+from system.client.clientFinetune import clientFinetune
 from system.server.serverbase import Server
 from utils.data_utils import visualize
 import matplotlib.pyplot as plt
@@ -7,12 +7,12 @@ import copy
 import torch
 import os
 
-class serverLocal(Server):
+class serverFinetune(Server):
     # def __init__(self, device, server_config):
     def __init__(self, args):
         super().__init__(args)
 
-        self.set_clients(clientAvg)
+        self.set_clients(clientFinetune)
         print("Finished creating server and clients.")
 
     def train(self):
@@ -22,10 +22,10 @@ class serverLocal(Server):
         best_metric=[float('inf') for i in range(4)]
         data_dim = self.args.dp.split('-')[0]
         model_name=type(self.global_model).__name__+data_dim
-        best_model_path=['/home/zhouheng/project/FedDA/models/weights/'+self.args.algorithm+'/'+model_name+f"_{i+1}" for i in range(4)]
-        os.makedirs(os.path.dirname('/home/zhouheng/project/FedDA/models/weights/'+self.args.algorithm+'/'), exist_ok=True)
+        best_model_path=['/home/zhouheng/project/FedDA/models/weights/'+'local'+'/'+model_name+f"_{i+1}" for i in range(4)]
+        os.makedirs(os.path.dirname('/home/zhouheng/project/FedDA/models/weights/'+'local'+'/'), exist_ok=True)
 
-        self.global_model.load_state_dict(torch.load(best_model_path[0]))
+        self.global_model.load_state_dict(torch.load(best_model_path[3]))
         self.send_models()
         for i in range(self.global_rounds+1):#+1是为了evaluate吗
             print(f"Round{i}")

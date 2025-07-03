@@ -1,12 +1,11 @@
 import copy
 import torch
 import torch.nn as nn
-import numpy as np
+
 import os
 from torch.utils.data import DataLoader, Dataset
 from utils.data_utils import read_client_data
 from utils.metric import SF
-import adamod
 #train是在client类里重写 其他方法在clientbase类里
 class Client(object):
     """
@@ -31,23 +30,17 @@ class Client(object):
         self.client_clip=args.client_clip
 
         self.loss = nn.MSELoss()
-        if self.args.optimizer_client == 'adamod':
-            self.optimizer = adamod.AdaMod(self.model.parameters(), lr=self.learning_rate)
-        elif self.args.optimizer_client == 'adam':
-            self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.learning_rate)
-        elif self.args.optimizer_client == 'sgd':
-            self.optimizer = torch.optim.SGD(self.model.parameters(), lr=self.learning_rate)
-        else:
-            raise NotImplementedError
+        self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.learning_rate)#如果是别的方案就不能提前设置
+        # self.optimizer = torch.optim.SGD(self.model.parameters(), lr=self.learning_rate)#如果是别的方案就不能提前设置
         self.learning_rate_scheduler = torch.optim.lr_scheduler.ExponentialLR(
             optimizer=self.optimizer,
             gamma=args.learning_rate_decay_gamma
         )
-        self.learning_rate_decay = args.client_lr_decay
+        self.learning_rate_decay = args.learning_rate_decay
         self.writer = writer
         self.global_round=None
         self.trainloader = self.load_train_data()
-        self.testloader = self.load_test_data(1024)
+        self.testloader = self.load_test_data()
 
     def get_feature(self):
         self.shallow_feature=[]

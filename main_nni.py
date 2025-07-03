@@ -1,7 +1,8 @@
-import copy
-import torch
+import nni
+
 import argparse
 import os
+# os.environ["CUDA_VISIBLE_DEVICES"] = "2"
 import time
 import warnings
 import numpy as np
@@ -20,7 +21,6 @@ from system.server.serverFedAvg import serverAvg
 from system.server.serverlocal import serverLocal
 from system.server.serverGHDR import serverGHDR
 from system.server.serverFedDA import serverDA
-from system.server.serverFedDA_GHDR import serverDA_GHDR
 from system.server.serverFedAvgiid import serverAvgiid
 from system.server.serverlocaliid import serverLocaliid
 from system.server.serverFinetune import serverFinetune
@@ -110,16 +110,6 @@ def run(args):
             raise NotImplementedError
         args.server_model=model.Cloud_GHDR(data_dim,args.window_size, args.num_clients).to(args.device)
         server = serverDA(args)
-    elif args.algorithm == "FedDA_GHDR":
-        if model_str == "cnn1D":
-            if args.EDS:
-                args.model = model.GHDR_FL_testeds(data_dim).to(args.device)
-            else:
-                args.model = model.GHDR_FL(data_dim).to(args.device)
-        else:
-            raise NotImplementedError
-        args.server_model=model.Cloud_GHDR(data_dim,args.window_size, args.num_clients).to(args.device)
-        server = serverDA_GHDR(args)
     elif args.algorithm == "FedAvgiid":
         if model_str == "cnn1D":
             if args.EDS:
@@ -155,6 +145,14 @@ def run(args):
         json.dump(var_args, file, indent=4)
 
     server.train()
+    # 假设你有验证精度或损失指标
+    # 例如 server.best_val_acc 或 server.best_val_loss
+    nni.report_final_result(server.test_avg_loss)  # 或者 nni.report_final_result(1 - val_loss)
+    # nni.report_final_result({
+    #     'test_avg_loss': server.test_avg_loss,
+    #     'val_loss': server.best_val_loss,
+    #     'test_acc': server.test_acc
+    # })
 
 
 if __name__ == '__main__':
@@ -171,7 +169,7 @@ if __name__ == '__main__':
     parser.add_argument('-dp', "--dp", type=str, default="18-[0,1]",
                         choices=["14-[-1,1]", "18-[0,1]", "14-[0,1]", "18-[-1,1]"], help="dataprocessing")
     parser.add_argument('-algo', "--algorithm", type=str, default="FedDA",##这个参数不传入server
-                        choices=["FedDA_GHDR", "centralized", "local", "localiid", "FedAvg", "FedAvgiid", "GHDR","FedDA","ablation1","ablation2", "finetune", "dann"])
+                        choices=["centralized", "local", "localiid", "FedAvg", "FedAvgiid", "GHDR","FedDA","ablation1","ablation2", "finetune", "dann"])
     parser.add_argument('-o_c', "--optimizer_client", type=str, default="adam", choices=["adam", "adamod", "sgd"])
     parser.add_argument('-o_s', "--optimizer_server", type=str, default="adam", choices=["adam", "adamod", "sgd"])
     parser.add_argument('-bs_c', "--batch_size_client", type=int, default=256)
@@ -204,6 +202,11 @@ if __name__ == '__main__':
     parser.add_argument('-DA_loss', type=str, default="adv+mmd",choices=["adv+mmd","adv","mmd","none"])
 
     args = parser.parse_args()
+#---------------------------------------------------------------------
+    tuned_params = nni.get_next_parameter()
+    for key, value in tuned_params.items():
+        setattr(args, key, value)
+# ---------------------------------------------------------------------
 
     print("=" * 50) #确认config
 
@@ -211,14 +214,8 @@ if __name__ == '__main__':
 
     print("=" * 50) #确认config
 
-    gpu_id = get_least_loaded_gpu_id()
-    # if gpu_id is not None:
-    #     os.environ['CUDA_VISIBLE_DEVICES'] = gpu_id
-    #     print(f"CUDA_VISIBLE_DEVICES set to {gpu_id}")
-    # else:
-    #     print("Failed to set CUDA_VISIBLE_DEVICES.")
-    args.device = torch.device(f'cuda:{gpu_id}' if torch.cuda.is_available() else 'cpu')
-
+    print("CUDA_VISIBLE_DEVICES:", os.environ.get("CUDA_VISIBLE_DEVICES"))
+    args.device = torch.device("cuda:0")
 
     print("=" * 50)
     print("Dataset: {}".format(args.dataset))

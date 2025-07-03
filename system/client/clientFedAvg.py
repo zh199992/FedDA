@@ -8,23 +8,26 @@ class clientAvg(Client):
         super().__init__(args, id, train_samples, test_samples, **kwargs)
 
     def train(self):
-        trainloader = self.load_train_data()
-        testloader = self.load_test_data()
+
         # self.model.to(self.device)
         ####模式
         self.model.train()
 
+        if self.args.EDI_Freeze:
+            for param in self.model.LHDR.parameters():
+                param.requires_grad = False
+
         max_local_epochs = self.local_epochs
 
         for epoch in range(max_local_epochs):
-            print(f"client{self.id}  local epoch: {epoch} ")
-            global_step = (self.global_round * (max_local_epochs) + epoch) * len(trainloader)
+            print(f"global round {self.global_round} client{self.id}  local epoch: {epoch} ")
+            global_step = (self.global_round * (max_local_epochs) + epoch) * len(self.trainloader)
             global_step_test = (self.global_round * (max_local_epochs) + epoch)
 
-            for i, (x, y) in enumerate(trainloader):
+            for i, (x, y) in enumerate(self.trainloader):
                 x = x.to(self.device)
                 y = y.to(self.device)
-                output, _ = self.model(x)
+                output, _, _ = self.model(x)
                 loss = self.loss(output, y)
                 self.writer.add_scalar('train/client'+str(self.id),torch.sqrt(loss),global_step+i)
                 self.optimizer.zero_grad()
@@ -33,15 +36,24 @@ class clientAvg(Client):
                     grad = torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=100)
                 self.optimizer.step()
 
-            for i, (x, y) in enumerate(testloader):
+            for i, (x, y) in enumerate(self.testloader):
                 x = x.to(self.device)
                 y = y.to(self.device)
-                output, _ = self.model(x)
+                output, _, _ = self.model(x)
                 loss = self.loss(output, y)
                 self.writer.add_scalar('test/client'+str(self.id),torch.sqrt(loss),global_step_test+i)
 
-        # self.model.cpu()
+            if self.learning_rate_decay:
+                self.learning_rate_scheduler.step()
 
-        if self.learning_rate_decay:
-            self.learning_rate_scheduler.step()
 
+    def set_parameters(self, model):
+        if self.args.F_FedAvg:
+            for new_param, old_param in zip(model.F.parameters(), self.model.F.parameters()):#可以选择
+                old_param.data = new_param.data.clone()
+        if self.args.EDI_FedAvg:
+            for new_param, old_param in zip(model.LHDR.parameters(), self.model.LHDR.parameters()):#可以选择
+                old_param.data = new_param.data.clone()
+        if self.args.P_FedAvg:
+            for new_param, old_param in zip(model.unique.parameters(), self.model.unique.parameters()):#可以选择
+                old_param.data = new_param.data.clone()

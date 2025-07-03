@@ -1,0 +1,17 @@
+experimentName: FedDA-NNI-Tuning
+trialCommand: python3 main_nni.py
+trialCodeDirectory: .
+trialConcurrency: 2
+#trialGpuNumber: 2
+maxTrialNumber: 50
+searchSpaceFile: ./search_space.json
+tuner:
+  name: TPE
+  classArgs:
+    optimize_mode: minimize
+trainingService:
+  platform: local
+  maxTrialNumberPerGpu: 1
+  useActiveGpu: false
+  gpuIndices: [0,2]
+

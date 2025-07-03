@@ -1,4 +1,4 @@
-from system.client.clientFedDA import clientDA
+from system.client.clientGHDR import clientGHDR
 from system.server.serverbase import Server
 import copy
 import torch
@@ -12,12 +12,12 @@ import nni
 #改变1 不用receive_models改用receive_models_and_features 2 cloudda 3重写aggregate_parameters和add_parameters 和lr 4.云端的optimizer和dataset  global model也得改
 #首先，我有四个client的特征，要减小他们四个被LHDR处理后的距离
 #下发是通过global_model的，因此如果EDI不在global model里更新就是无效训练？
-class serverDA(Server):
+class serverDA_GHDR(Server):
     # def __init__(self, device, server_config):
     def __init__(self, args):
         super().__init__(args)
         self.global_model = copy.deepcopy(args.server_model)###########33
-        self.set_clients(clientDA)
+        self.set_clients(clientGHDR)
         print("Finished creating server and clients.")
         self.lr1=float(args.server_learning_rate.split(',')[0])
         self.lr2=float(args.server_learning_rate.split(',')[1])

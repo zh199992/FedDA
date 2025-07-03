@@ -2,20 +2,19 @@ import copy
 import torch
 import numpy as np
 from system.client.clientbase import Client
-#改变 1.optimizer和scheduler 2.在train时存储shallow_feature 3.set_parameters (决定了F是否参与聚合)
-class clientDA(Client):
-    def __init__(self, args, id, train_samples, test_samples, **kwargs):
-        super().__init__(args, id, train_samples, test_samples, **kwargs)
-        # if self.args.algorithm == 'FedAvg':
-        # params_to_optimize = list(self.model.E_DS.parameters()) + list(self.model.p_pre.parameters())
-        # self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.learning_rate)#如果是别的方案就不能提前设置
-        # self.learning_rate_scheduler = torch.optim.lr_scheduler.ExponentialLR(
-        #     optimizer=self.optimizer,
-        #     gamma=args.learning_rate_decay_gamma
-        # )
+from utils.data_utils import read_client_data_iid
+from torch.utils.data import DataLoader
 
+
+class clientAvgiid(Client):
+    def __init__(self, args, id, trainset, testset, train_samples, test_samples, **kwargs):
+        self.trainset = trainset
+        self.testset = testset
+        super().__init__(args, id, train_samples, test_samples, **kwargs)#即使在基类的 __init__ 中调用 self.load_train_data，实际调用的仍然是子类的 load_train_data 方法。
 
     def train(self):
+
+        # self.model.to(self.device)
         ####模式
         self.model.train()
 
@@ -26,7 +25,7 @@ class clientDA(Client):
         max_local_epochs = self.local_epochs
 
         for epoch in range(max_local_epochs):
-            print(f"global round {self.global_round} client{self.id}  local epoch: {epoch} ")
+            print(f"client{self.id}  local epoch: {epoch} ")
             global_step = (self.global_round * (max_local_epochs) + epoch) * len(self.trainloader)
             global_step_test = (self.global_round * (max_local_epochs) + epoch)
 
@@ -45,7 +44,7 @@ class clientDA(Client):
             for i, (x, y) in enumerate(self.testloader):
                 x = x.to(self.device)
                 y = y.to(self.device)
-                output,_ ,_ = self.model(x)
+                output, _, _ = self.model(x)
                 loss = self.loss(output, y)
                 self.writer.add_scalar('test/client'+str(self.id),torch.sqrt(loss),global_step_test+i)
 
@@ -54,7 +53,7 @@ class clientDA(Client):
             if self.learning_rate_decay:
                 self.learning_rate_scheduler.step()
 
-        #
+
     def set_parameters(self, model):
         if self.args.F_FedAvg:
             for new_param, old_param in zip(model.F.parameters(), self.model.F.parameters()):#可以选择
@@ -65,4 +64,14 @@ class clientDA(Client):
         if self.args.P_FedAvg:
             for new_param, old_param in zip(model.unique.parameters(), self.model.unique.parameters()):#可以选择
                 old_param.data = new_param.data.clone()
+
+    def load_train_data(self, batch_size=None):
+        if batch_size == None:
+            batch_size = self.batch_size
+        return DataLoader(self.trainset, batch_size, drop_last=False, shuffle=True)
+
+    def load_test_data(self, batch_size=None):
+        if batch_size == None:
+            batch_size = self.batch_size
+        return DataLoader(self.testset, batch_size, drop_last=False, shuffle=True)
 

@@ -211,14 +211,15 @@ if __name__ == '__main__':
 
     print("=" * 50) #确认config
 
-    gpu_id = get_least_loaded_gpu_id()
-    # if gpu_id is not None:
-    #     os.environ['CUDA_VISIBLE_DEVICES'] = gpu_id
-    #     print(f"CUDA_VISIBLE_DEVICES set to {gpu_id}")
-    # else:
-    #     print("Failed to set CUDA_VISIBLE_DEVICES.")
-    args.device = torch.device(f'cuda:{gpu_id}' if torch.cuda.is_available() else 'cpu')
+    # gpu_id = get_least_loaded_gpu_id()
+    # # if gpu_id is not None:
+    # #     os.environ['CUDA_VISIBLE_DEVICES'] = gpu_id
+    # #     print(f"CUDA_VISIBLE_DEVICES set to {gpu_id}")
+    # # else:
+    # #     print("Failed to set CUDA_VISIBLE_DEVICES.")
+    # args.device = torch.device(f'cuda:{gpu_id}' if torch.cuda.is_available() else 'cpu')
 
+    args.device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 
     print("=" * 50)
     print("Dataset: {}".format(args.dataset))

@@ -1,8 +1,8 @@
 experimentName: FedDA-NNI-Tuning
-trialCommand: python3 main_nni.py
+trialCommand: python main_nni.py
 trialCodeDirectory: .
-trialConcurrency: 2
-#trialGpuNumber: 2
+trialConcurrency: 2 #导致一个显卡跑n个实验
+trialGpuNumber: 2 #设置这个不能跑
 maxTrialNumber: 50
 searchSpaceFile: ./search_space.json
 tuner:
@@ -12,6 +12,8 @@ tuner:
 trainingService:
   platform: local
   maxTrialNumberPerGpu: 1
-  useActiveGpu: false
-  gpuIndices: [0,2]
+  useActiveGpu: True
+
+#  useActiveGpu: false
+#  gpuIndices: [0,3] #设置了要爆
 

@@ -25,8 +25,10 @@ class Client(object):
         self.train_samples = train_samples#用来干什么？计算RMSE吗？
         self.test_samples = test_samples
         self.batch_size = args.batch_size_client
-        self.learning_rate = float(args.local_learning_rate.split(',')[0])
-        self.local_epochs = int(args.local_epochs.split(',')[0])
+        # self.learning_rate = float(args.local_learning_rate.split(',')[0])
+        self.learning_rate = args.local_learning_rate
+        # self.local_epochs = int(args.local_epochs.split(',')[0])
+        self.local_epochs = int(args.local_epochs)
         self.client_schedule=args.client_schedule
         self.client_clip=args.client_clip
 

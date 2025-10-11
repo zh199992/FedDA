@@ -1,0 +1,56 @@
+{
+  "aim": {
+    "_type": "choice",
+    "_value": ["new_impact_of_clip_decay2"]
+  },
+  "local_learning_rate": {
+    "_type": "choice",
+    "_value": [0.0016360666489702047]
+  },
+  "server_learning_rate": {
+    "_type": "choice",
+    "_value": [0.00003769773248026142]
+  },
+  "optimizer_client": {
+    "_type": "choice",
+    "_value": ["adam", "adamod"]
+  },
+  "optimizer_server": {
+    "_type": "choice",
+    "_value": ["adam", "adamod"]
+  },
+  "local_epochs": {
+    "_type": "choice",
+    "_value": [13.911436754016428]
+  },
+
+  "server_epochs": {
+    "_type": "choice",
+    "_value": [5.053082744831438]
+  },
+  "DA_loss": {
+    "_type": "choice",
+    "_value": ["adv+mmd","adv","mmd"]
+  },
+  "gamma": {
+    "_type": "uniform",
+    "_value": [0.0, 1.0],
+    "_extra": {
+      "conditions": {
+        "DA_loss": ["adv", "mmd"]
+      }
+    }
+  },
+  "client_clip": {
+    "_type": "choice",
+    "_value": [true,false]
+  },
+  "server_lr_decay": {
+    "_type": "choice",
+    "_value": [true,false]
+  },
+  "client_lr_decay": {
+    "_type": "choice",
+    "_value": [true,false]
+  }
+}

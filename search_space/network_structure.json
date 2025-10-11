@@ -1,0 +1,66 @@
+{
+  "aim": {
+    "_type": "choice",
+    "_value": ["net_structure"]
+  },
+  "local_learning_rate": {
+    "_type": "choice",
+    "_value": [0.0018748364185708442]
+  },
+  "server_learning_rate": {
+    "_type": "choice",
+    "_value": [0.0003977553741859016]
+  },
+  "optimizer_client": {
+    "_type": "choice",
+    "_value": ["adam"]
+  },
+  "optimizer_server": {
+    "_type": "choice",
+    "_value": ["adam"]
+  },
+  "local_epochs": {
+    "_type": "choice",
+    "_value": [13]
+  },
+
+  "server_epochs": {
+    "_type": "choice",
+    "_value": [7]
+  },
+  "DA_loss": {
+    "_type": "choice",
+    "_value": ["adv+mmd"]
+  },
+  "gamma": {
+    "_type": "choice",
+    "_value": [0.798375803093945],
+    "_extra": {
+      "conditions": {
+        "DA_loss": ["adv", "mmd"]
+      }
+    }
+  },
+  "global_rounds_init": {
+    "_type": "choice",
+    "_value": [3]
+  },
+  "conv_init": {
+    "_type": "choice",
+    "_value": ["uniform"]
+  },
+  "gru_init": {
+    "_type": "choice",
+    "_value": ["uniform"]
+  },
+  "linear_init": {
+    "_type": "choice",
+    "_value": ["xavier_uniform"]
+  },
+   "EDS": {
+     "_type": "choice",
+     "_value": [
+       true]
+   }
+
+}

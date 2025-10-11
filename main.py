@@ -14,6 +14,7 @@ import random
 import json
 import yaml
 from datetime import datetime
+from utils.root import find_project_root
 
 from system.server.serverCentralized2 import serverCentralized
 from system.server.serverFedAvg import serverAvg
@@ -144,9 +145,10 @@ def run(args):
     print(args.model)
     print(args.TIMESTAMP)
 
+    root_dir = find_project_root('FedDA')
     # directory = '/home/zhouheng/project/FedDA/logs/test1/config/'#比画图多一个/config/
-    directory = '/home/zhouheng/project/FedDA/logs/test2/config/'#比画图多一个/config/
-    config_path = os.path.join(directory,  args.algorithm ,args.aim,args.TIMESTAMP+'.json')
+    directory = 'logs/0730/config/'#比画图多一个/config/
+    config_path = os.path.join(root_dir, directory,  args.algorithm ,args.aim,args.TIMESTAMP+'.json')
     os.makedirs(os.path.dirname(config_path), exist_ok=True)
     # yaml_path=os.path.join(directory,  args.algorithm ,args.aim+'.yaml')
     var_args=vars(args)
@@ -164,26 +166,33 @@ if __name__ == '__main__':
     # 创建ArgumentParser对象
     parser = argparse.ArgumentParser()
     # general  添加参数
-    parser.add_argument('-aim', "--aim", type=str)#训练目的
+    parser.add_argument("-random_seed", "--random_seed", type=int, default=42)
+    parser.add_argument('-d', "--directory", type=str, default="0821")
+    parser.add_argument('-aim', "--aim", type=str, default="debug")#训练目的
     parser.add_argument('-data', "--dataset", type=str, default="CMAPSSData")
     parser.add_argument('-m', "--model_name", type=str, default="cnn1D",choices=["cnn1D","lstm","FedRUL"])
     # parser.add_argument('-cloudm', "--model_name", type=str, default="cnn1D",choices=["cnn1D","lstm","FedRUL"])
     parser.add_argument('-dp', "--dp", type=str, default="18-[0,1]",
                         choices=["14-[-1,1]", "18-[0,1]", "14-[0,1]", "18-[-1,1]"], help="dataprocessing")
     parser.add_argument('-algo', "--algorithm", type=str, default="FedDA",##这个参数不传入server
-                        choices=["FedDA_GHDR", "centralized", "local", "localiid", "FedAvg", "FedAvgiid", "GHDR","FedDA","ablation1","ablation2", "finetune", "dann"])
+                        choices=["centralized", "local", "localiid", "FedAvg", "FedAvgiid", "GHDR","FedDA","ablation1","ablation2", "finetune", "dann"])
     parser.add_argument('-o_c', "--optimizer_client", type=str, default="adam", choices=["adam", "adamod", "sgd"])
     parser.add_argument('-o_s', "--optimizer_server", type=str, default="adam", choices=["adam", "adamod", "sgd"])
-    parser.add_argument('-bs_c', "--batch_size_client", type=int, default=256)
+    parser.add_argument('-bs_c', "--batch_size_client", type=int, default=1024)
     parser.add_argument('-bs_s', "--batch_size_server", type=int, default=1024)
     parser.add_argument('-nc', "--num_clients", type=int, default=4,
                         help="Total number of clients")
+    parser.add_argument('-gr_i', "--global_rounds_init", type=int, default=0)
     parser.add_argument('-gr', "--global_rounds", type=int, default=10)
-    parser.add_argument('-le', "--local_epochs", type=str, default='50,5',
+    # parser.add_argument('-le', "--local_epochs", type=str, default='50,5',
+    #                     help="Multiple update steps in one local epoch.")
+    parser.add_argument('-le', "--local_epochs", type=int, default=0,
                         help="Multiple update steps in one local epoch.")
     parser.add_argument('-se', "--server_epochs", type=int, default=10)
-    parser.add_argument('-clr', "--local_learning_rate", type=str, default='0.001,0.001')
-    parser.add_argument('-slr', "--server_learning_rate", type=str, default='0.001,0.001')
+    # parser.add_argument('-clr', "--local_learning_rate", type=str, default='0.001,0.001')
+    # parser.add_argument('-slr', "--server_learning_rate", type=str, default='0.001,0.001')
+    parser.add_argument('-clr', "--local_learning_rate", type=float, default=0.001)
+    parser.add_argument('-slr', "--server_learning_rate", type=float, default=0.001)
     # parser.add_argument('-did', "--device_id", type=str, default="0")#?
     parser.add_argument('-sches', "--server_schedule", type=bool, default=False)
     parser.add_argument('-schec', "--client_schedule", type=bool, default=False)
@@ -195,6 +204,12 @@ if __name__ == '__main__':
 
     parser.add_argument('-ldg', "--learning_rate_decay_gamma", type=float, default=0.99)
 
+    parser.add_argument('-conv_init', "--conv_init", type=str, default="kaiming_uniform",
+                        choices=["kaiming_uniform","kaiming_normal","xavier_uniform","xavier_normal","normal","uniform"])
+    parser.add_argument('-gru_init', "--gru_init", type=str, default="kaiming_uniform",
+                        choices=["kaiming_uniform","kaiming_normal","xavier_uniform","xavier_normal","normal","uniform"])
+    parser.add_argument('-linear_init', "--linear_init", type=str, default="kaiming_uniform",
+                        choices=["kaiming_uniform","kaiming_normal","xavier_uniform","xavier_normal","normal","uniform"])
     parser.add_argument('-F_FedAvg', "--F_FedAvg", type=bool, default=False)
     parser.add_argument('-EDI_FedAvg', "--EDI_FedAvg", type=bool,default=False)#不freeze也不fedavg就是个性化
     parser.add_argument('-P_FedAvg', "--P_FedAvg", type=bool,default=False)
@@ -202,6 +217,8 @@ if __name__ == '__main__':
     parser.add_argument('-EDS', "--EDS", type=bool,default=False)#影响模型的forward
     parser.add_argument('-fedeval', "--fedeval", type=bool, default=False)
     parser.add_argument('-DA_loss', type=str, default="adv+mmd",choices=["adv+mmd","adv","mmd","none"])
+    parser.add_argument('-lambda_mmd', "--lambda_mmd", type=float, default=0.05)
+    parser.add_argument('-gamma', "--gamma", type=float, default=0.05)
 
     args = parser.parse_args()
 

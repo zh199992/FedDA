@@ -1,0 +1,72 @@
+{
+  "aim": {
+    "_type": "choice",
+    "_value": ["fedper+newmodel"]
+  },
+  "local_learning_rate": {
+    "_type": "loguniform",
+    "_value": [0.00001, 0.01]
+  },
+  "server_learning_rate": {
+    "_type": "loguniform",
+    "_value": [0.000001, 0.001]
+  },
+  "optimizer_client": {
+    "_type": "choice",
+    "_value": ["adam", "adamod"]
+  },
+
+  "local_epochs": {
+    "_type": "choice",
+    "_value": [15]
+  },
+  "server_epochs": {
+    "_type": "choice",
+    "_value": [0]
+  },
+  "global_rounds_init": {
+    "_type": "choice",
+    "_value": [ 10]
+  },
+  "conv_init": {
+    "_type": "choice",
+    "_value": [
+      "kaiming_uniform",
+      "kaiming_normal",
+      "xavier_uniform",
+      "xavier_normal",
+      "normal",
+      "uniform"
+    ]
+  },
+  "gru_init": {
+    "_type": "choice",
+    "_value": [
+      "kaiming_uniform",
+      "kaiming_normal",
+      "xavier_uniform",
+      "xavier_normal",
+      "normal",
+      "uniform"
+    ]
+  },
+  "linear_init": {
+    "_type": "choice",
+    "_value": [
+      "kaiming_uniform",
+      "kaiming_normal",
+      "xavier_uniform",
+      "xavier_normal",
+      "normal",
+      "uniform"
+    ]
+  },
+  "client_clip": {
+    "_type": "choice",
+    "_value": [true, false]
+  },
+  "client_lr_decay": {
+    "_type": "choice",
+    "_value": [true, false]
+  }
+}

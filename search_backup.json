@@ -1,0 +1,16 @@
+  "DA_loss": {
+    "_type": "choice",
+    "_value": ["adv+mmd","adv","mmd"]
+  },
+  "lambda_mmd": {
+    "_type": "choice",
+    "_value": [0.0, 0.001, 0.01, 0.1, 1.0, 10.0],
+    "_extra": {
+      "conditions": {
+        "DA_loss": ["adv+mmd", "mmd"]
+      }
+    }
+  }  "EDS": {
+    "_type": "choice",
+    "_value": [true]
+  },

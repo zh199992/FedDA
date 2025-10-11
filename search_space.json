@@ -1,29 +1,80 @@
 {
   "aim": {
     "_type": "choice",
-    "_value": ["test_nni"]
-  },
-  "global_rounds": {
-    "_type": "choice",
-    "_value": [2]
+    "_value": ["fedda_with_eds+fedrep"]
   },
   "local_learning_rate": {
-    "_type": "choice",
-    "_value": ["0.001,0.001", "0.0005,0.0005", "0.005,0.005"]
+    "_type": "loguniform",
+    "_value": [1e-5, 0.01]
   },
-  "batch_size_client": {
+  "server_learning_rate": {
+    "_type": "loguniform",
+    "_value": [1e-6, 0.001]
+  },
+  "optimizer_client": {
     "_type": "choice",
-    "_value": [1024]
+    "_value": ["adam", "adamod"]
+  },
+  "optimizer_server": {
+    "_type": "choice",
+    "_value": ["adam", "adamod"]
   },
   "local_epochs": {
-    "_type": "choice",
-    "_value": ["1,1"]
+    "_type": "int_uniform",
+    "_value": [1, 15]
   },
-  "lrd_c": {
-    "_type": "choice",
-    "_value": [0.1]
+
+  "server_epochs": {
+    "_type": "int_uniform",
+    "_value": [1, 20]
   },
-  "EDS": {
+  "DA_loss": {
+    "_type": "choice",
+    "_value": ["adv+mmd","adv","mmd"]
+  },
+  "gamma": {
+    "_type": "uniform",
+    "_value": [0.0, 1.0],
+    "_extra": {
+      "conditions": {
+        "DA_loss": ["adv", "mmd"]
+      }
+    }
+  },
+  "global_rounds_init": {
+    "_type": "choice",
+    "_value": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+  },
+  "conv_init": {
+    "_type": "choice",
+    "_value": ["kaiming_uniform","kaiming_normal","xavier_uniform","xavier_normal","normal","uniform"]
+  },
+  "gru_init": {
+    "_type": "choice",
+    "_value": ["kaiming_uniform","kaiming_normal","xavier_uniform","xavier_normal","normal","uniform"]
+  },
+  "linear_init": {
+    "_type": "choice",
+    "_value": ["kaiming_uniform","kaiming_normal","xavier_uniform","xavier_normal","normal","uniform"]
+  },
+   "EDS": {
+     "_type": "choice",
+     "_value": [
+       true]
+   },
+  "F_FedAvg": {
+    "_type": "choice",
+    "_value": [true]
+  },
+    "client_clip": {
+    "_type": "choice",
+    "_value": [true, false]
+  },
+  "server_lr_decay": {
+    "_type": "choice",
+    "_value": [true, false]
+  },
+  "client_lr_decay": {
     "_type": "choice",
     "_value": [true, false]
   }

@@ -19,8 +19,9 @@ class serverDA(Server):
         self.global_model = copy.deepcopy(args.server_model)###########33
         self.set_clients(clientDA)
         print("Finished creating server and clients.")
-        self.lr1=float(args.server_learning_rate.split(',')[0])
-        self.lr2=float(args.server_learning_rate.split(',')[1])
+        self.lr1=args.server_learning_rate
+        # self.lr1=float(args.server_learning_rate.split(',')[0])
+        # self.lr2=float(args.server_learning_rate.split(',')[1])
         if self.args.optimizer_server == 'adamod':
             self.optimizer = adamod.AdaMod(self.global_model.parameters(), lr=self.lr1)
         elif self.args.optimizer_server == 'adam':
@@ -36,16 +37,49 @@ class serverDA(Server):
         )
         self.learning_rate_decay = args.server_lr_decay
         self.advloss=nn.CrossEntropyLoss()#=nn.LogSoftmax()+nn.NLLLoss().
-        self.lambda_mmd=0.05
+        self.lambda_mmd=args.lambda_mmd
+        self.gamma=args.gamma
         self.DA_loss=args.DA_loss
+        self.global_rounds_init=args.global_rounds_init
+
+        # ---------------------- Early Stopping Variables ----------------------
+        self.early_stop = getattr(args, 'early_stop', False)         # 是否启用早停
+        self.patience = 5              # 容忍多少轮不提升
+        self.counter = 0                                             # 计数器
+        self.best_rmse = 0.0                                          # 最佳准确率
+        self.early_stop_flag = False                                 # 是否触发早停
+        # ----------------------------------------------------------------------
 
     def train(self):
-        for i in range(self.global_rounds+1):  # +1是为了evaluate吗
+        for i in range(self.global_rounds_init+1):
+            print("\nEvaluate global model")
+            if self.args.fedeval:
+                self.evaluate(round=i)
+            else:
+                if i==0:
+                    self.evaluate(round=i)
+            if self.args.client_lr_decay:
+                for client in self.clients:
+                    client.learning_rate_scheduler = torch.optim.lr_scheduler.ExponentialLR(
+                        optimizer=client.optimizer,
+                        gamma=client.args.learning_rate_decay_gamma
+                    )
+
+            for client in self.clients:
+                client.global_round = i
+                client.train()
+            for client in self.clients:
+                client.get_feature()
+            self.receive_models_features()
+            if not self.args.fedeval:
+                self.evaluate(round=i+1)
+
+#---------------------------------------------------------------------
+        self.aggregate_parameters()
+#----------------------------------------------------------------------
+        for i in range(self.global_rounds_init+1,self.global_rounds+1):  # +1是为了evaluate吗
             print(f"Round{i}")
             self.send_models()
-
-            # if i%self.eval_gap == 0:#控制输出训练效果的间隔   为什么是获取了才evaluate？
-            #     print(f"\n-------------Round number: {i}-------------")
             print("\nEvaluate global model")
             if self.args.fedeval:
                 self.evaluate(round=i)
@@ -77,6 +111,31 @@ class serverDA(Server):
             if not self.args.fedeval:
                 self.evaluate(round=i+1)
 
+            # ========================================================================================================
+            # === 🛑🛑🛑 EARLY STOPPING CHECKPOINT (MONITOR TEST ACCURACY) 🛑🛑🛑 ===================================
+            # ========================================================================================================
+            if self.early_stop:   
+                # 假设 evaluate() 会把结果存到 self.rs_test_acc 列表里
+                current_acc = self.rs_test_acc[-1] if len(self.rs_test_acc) > 0 else 0.0
+
+                if current_acc > self.best_acc:
+                    self.best_acc = current_acc
+                    self.counter = 0  # 重置计数器
+                    # 可选：保存当前最优模型
+                    # self.save_global_model(model_name="best_global_model.pth")
+                else:
+                    self.counter += 1
+                    print(f"[Early Stop] No improvement in accuracy. "
+                          f"Counter: {self.counter}/{self.patience}")
+
+                if self.counter >= self.patience:
+                    print("🔥🔥🔥 Early stopping triggered! Training halted due to no improvement.")
+                    print(f"Best Accuracy: {self.best_acc:.4f} at round {i - self.counter}")
+                    self.early_stop_flag = True
+                    break  # 终止训练循环
+            # ========================================================================================================
+            # === ✅ END OF EARLY STOPPING LOGIC =====================================================================
+            # ========================================================================================================
         # print("\nBest accuracy.")
         # print(max(self.rs_test_acc))
 
@@ -95,18 +154,57 @@ class serverDA(Server):
                 domain_labels = batch_domains
                 adv_loss = self.advloss(domain_preds, domain_labels)
                 mmd_loss = compute_mmd_loss(feature_DI, batch_domains)
-                self.writer.add_scalar('train/server_mmd',mmd_loss,global_step+i)
-                self.writer.add_scalar('train/server_adv',adv_loss,global_step+i)
+                self.writer.add_scalar('train/server_mmd', mmd_loss, global_step + i)
+                self.writer.add_scalar('train/server_adv', adv_loss, global_step + i)
                 if self.DA_loss=='mmd':
-                    total_loss = self.lambda_mmd*mmd_loss
+                    total_loss = mmd_loss
+                    # adv_loss = self.advloss(domain_preds, domain_labels)
+                    # mmd_loss = compute_mmd_loss(feature_DI, batch_domains)
+                    # self.writer.add_scalar('train/server_mmd', mmd_loss, global_step + i)
+                    # self.writer.add_scalar('train/server_adv', adv_loss, global_step + i)
+                    # mmd_loss=mmd_loss/mmd_loss.detach()
+                    # mmd_loss.backward()
+                    # self.optimizer.step()
                 elif self.DA_loss=='adv':
                     total_loss = adv_loss
+                    # adv_loss = self.advloss(domain_preds, domain_labels)
+                    # mmd_loss = compute_mmd_loss(feature_DI, batch_domains)
+                    # self.writer.add_scalar('train/server_mmd', mmd_loss, global_step + i)
+                    # self.writer.add_scalar('train/server_adv', adv_loss, global_step + i)
+                    # adv_loss=adv_loss/adv_loss.detach()
+                    # adv_loss.backward()
+                    # self.optimizer.step()
                 elif self.DA_loss=='adv+mmd':
-                    total_loss = adv_loss + self.lambda_mmd*mmd_loss
+                    total_loss = adv_loss + self.lambda_mmd*mmd_loss#gamma    (1-gamma     ) [0,1] 0.1
+                    # total_loss = self.gamma*adv_loss/ + (1-self.gamma)*self.lambda_mmd*mmd_loss#gamma    (1-gamma     ) [0,1] 0.1
+                    total_loss = self.gamma*adv_loss + (1-self.gamma)*mmd_loss#gamma    (1-gamma     ) [0,1] 0.1
+                    # adv_loss = self.advloss(domain_preds, domain_labels)
+                    # adv_loss_normalized = self.gamma*adv_loss/adv_loss.detach()
+                    # adv_loss_normalized.backward()
+                    # for name, param in self.global_model.named_parameters():
+                    #     if param.grad is not None:
+                    #         self.writer.add_histogram(f'{name}/adv_loss', param.grad, 0)
+                    # self.optimizer.step()
+                    # self.optimizer.zero_grad()
+                    # #--------------这样应该可以创建新的计算图  实际应用再改会一起优化就行
+                    # batch_data = batch_data.to(self.device)
+                    # batch_domains = batch_domains.to(self.device)
+                    # domain_preds, feature_DI = self.global_model(batch_data)
+                    # mmd_loss = compute_mmd_loss(feature_DI, batch_domains)
+                    # self.writer.add_scalar('train/server_mmd', mmd_loss, global_step + i)
+                    # self.writer.add_scalar('train/server_adv', adv_loss, global_step + i)
+                    # mmd_loss_normalized = (1-self.gamma)*mmd_loss/mmd_loss.detach()#gamma    (1-gamma     ) [0,1] 0.1
+                    # mmd_loss_normalized.backward()
+                    # for name, param in self.global_model.named_parameters():
+                    #     if param.grad is not None:
+                    #         self.writer.add_histogram(f'{name}/mmd_loss', param.grad, 0)
+                    # self.optimizer.step()
+                    # self.optimizer.zero_grad()
                 elif  self.DA_loss=='none':
                     total_loss = 0
                 else:
                     raise NotImplementedError
+
                 total_loss.backward()
                 self.optimizer.step()
             #-------------------------------------------------------
@@ -185,6 +283,6 @@ def compute_mmd_loss(features, domain_labels, sigma=1.0):
             features_j = features[domain_labels == domain_j]
 
             # 计算 MMD
-            mmd_loss += mmd_rbf(features_i, features_j)
+            mmd_loss = mmd_loss+mmd_rbf(features_i, features_j)
 
     return mmd_loss

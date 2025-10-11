@@ -17,7 +17,7 @@ import yaml
 from datetime import datetime
 from utils.data_utils import str_to_bool
 from utils.root import find_project_root
-
+from distutils.util import strtobool
 from system.server.serverCentralized2 import serverCentralized
 from system.server.serverFedAvg import serverAvg
 from system.server.serverlocal import serverLocal
@@ -31,6 +31,7 @@ from models import model
 from utils.seed_torch import seed_torch
 from utils.gpu_select import get_least_loaded_gpu_id
 def run(args):
+    torch.autograd.set_detect_anomaly(True)
     model_str = args.model_name
     data_dim = int(args.dp.split('-')[0])
 
@@ -107,13 +108,12 @@ def run(args):
             if args.EDS:
                 args.model = model.GHDR_FL_testeds(data_dim,args.conv_init,args.gru_init, args.linear_init).to(args.device)
             else:
-                # args.model = model.GHDR_FL(data_dim,args.conv_init,args.gru_init, args.linear_init).to(args.device)
-                args.model = model.GHDR_FL_new(data_dim,args.conv_init,args.gru_init, args.linear_init).to(args.device)
+                args.model = model.GHDR_FL(data_dim,args.conv_init,args.gru_init, args.linear_init).to(args.device)
         else:
             raise NotImplementedError
-        # args.server_model=model.Cloud_GHDR(data_dim,args.window_size, args.num_clients,args.conv_init, args.linear_init).to(args.device)
-        args.server_model=model.Cloud_GHDR_new(data_dim,args.window_size, args.num_clients,args.conv_init, args.linear_init).to(args.device)
+        args.server_model=model.Cloud_GHDR(data_dim,args.window_size, args.num_clients,args.conv_init, args.linear_init).to(args.device)
         server = serverDA(args)
+
     elif args.algorithm == "FedAvgiid":
         if model_str == "cnn1D":
             if args.EDS:
@@ -161,13 +161,13 @@ def run(args):
 
 
 if __name__ == '__main__':
+    seed_torch()
 
     total_start = time.time()
     # 创建ArgumentParser对象
     parser = argparse.ArgumentParser()
     # general  添加参数
-    parser.add_argument("-random_seed", "--random_seed", type=int, default=42)
-    parser.add_argument('-d', "--directory", type=str, default="0821")
+    parser.add_argument('-d', "--directory", type=str, default="test1")
     parser.add_argument('-aim', "--aim", type=str, default="debug")#训练目的
     parser.add_argument('-data', "--dataset", type=str, default="CMAPSSData")
     parser.add_argument('-m', "--model_name", type=str, default="cnn1D",choices=["cnn1D","lstm","FedRUL"])
@@ -182,10 +182,8 @@ if __name__ == '__main__':
     parser.add_argument('-bs_s', "--batch_size_server", type=int, default=1024)
     parser.add_argument('-nc', "--num_clients", type=int, default=4,
                         help="Total number of clients")
-    parser.add_argument('-soft_update', "--soft_update", type=bool, default=False)#我想到T/F可以用0/1来表示
-    parser.add_argument('-gr_i', "--global_rounds_init", type=int, default=0)
+    parser.add_argument('-gr_i', "--global_rounds_init", type=int, default=5)
     parser.add_argument('-gr', "--global_rounds", type=int, default=10)
-    parser.add_argument('-early_stop', "--early_stop", type=bool, default=True)
     # parser.add_argument('-le', "--local_epochs", type=str, default='50,5',
     #                     help="Multiple update steps in one local epoch.")
     parser.add_argument('-le', "--local_epochs", type=int, default=0,
@@ -196,13 +194,13 @@ if __name__ == '__main__':
     parser.add_argument('-clr', "--local_learning_rate", type=float, default=0.001)
     parser.add_argument('-slr', "--server_learning_rate", type=float, default=0.001)
     # parser.add_argument('-did', "--device_id", type=str, default="0")#?
-    parser.add_argument('-sches', "--server_schedule", type=bool, default=False)
-    parser.add_argument('-schec', "--client_schedule", type=bool, default=False)
-    parser.add_argument('-clips', "--server_clip", type=bool, default=False)
-    parser.add_argument('-clipc', "--client_clip", type=bool, default=False)
+    parser.add_argument('-sches', "--server_schedule", type=lambda x: bool(strtobool(x)), default=False)
+    parser.add_argument('-schec', "--client_schedule", type=lambda x: bool(strtobool(x)), default=False)
+    parser.add_argument('-clips', "--server_clip", type=lambda x: bool(strtobool(x)), default=False)
+    parser.add_argument('-clipc', "--client_clip", type=lambda x: bool(strtobool(x)), default=False)
     parser.add_argument('-ws', "--window_size", type=int, default=30)#删了train window还是test window?
-    parser.add_argument('-lrd_c', "--client_lr_decay", type=bool, default=False)
-    parser.add_argument('-lrd_s', "--server_lr_decay", type=bool, default=False)
+    parser.add_argument('-lrd_c', "--client_lr_decay", type=lambda x: bool(strtobool(x)), default=False)
+    parser.add_argument('-lrd_s', "--server_lr_decay", type=lambda x: bool(strtobool(x)), default=False)
 
     parser.add_argument('-ldg', "--learning_rate_decay_gamma", type=float, default=0.99)
 
@@ -212,11 +210,13 @@ if __name__ == '__main__':
                         choices=["kaiming_uniform","kaiming_normal","xavier_uniform","xavier_normal","normal","uniform"])
     parser.add_argument('-linear_init', "--linear_init", type=str, default="kaiming_uniform",
                         choices=["kaiming_uniform","kaiming_normal","xavier_uniform","xavier_normal","normal","uniform"])
+
     parser.add_argument('-F_FedAvg', "--F_FedAvg", type=bool, default=False)
     parser.add_argument('-EDI_FedAvg', "--EDI_FedAvg", type=bool,default=False)#不freeze也不fedavg就是个性化
     parser.add_argument('-P_FedAvg', "--P_FedAvg", type=bool,default=False)
     parser.add_argument('-EDI_Freeze', "--EDI_Freeze", type=bool,default=False)
-    parser.add_argument('-EDS', "--EDS", type=bool,default=False)#影响模型的forward
+    # parser.add_argument('-EDS', "--EDS", action='store_true', type=bool,default=False)#影响模型的forward
+    parser.add_argument('-EDS', '--EDS', type=lambda x: bool(strtobool(x)), default=False, help="Enable EDS (true/false)")
     parser.add_argument('-fedeval', "--fedeval", type=bool, default=False)
     parser.add_argument('-DA_loss', type=str, default="adv+mmd",choices=["adv+mmd","adv","mmd","none"])
     parser.add_argument('-lambda_mmd', "--lambda_mmd", type=float, default=0.05)
@@ -224,11 +224,10 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
 #---------------------------------------------------------------------
-    tuned_params = nni.get_next_parameter()
-    for key, value in tuned_params.items():
-        setattr(args, key, value)
+    # tuned_params = nni.get_next_parameter()
+    # for key, value in tuned_params.items():
+    #     setattr(args, key, value)
 # ---------------------------------------------------------------------
-    seed_torch(args.random_seed)
     print("=" * 50) #确认config
 
     print("Algorithm: {}".format(args.algorithm))
@@ -236,10 +235,9 @@ if __name__ == '__main__':
     print("=" * 50) #确认config
 
     print("CUDA_VISIBLE_DEVICES:", os.environ.get("CUDA_VISIBLE_DEVICES"))
-    args.device = torch.device("cuda")
+    args.device = torch.device("cuda:3")
 
     print("=" * 50)
-    print("random_seed: {}".format(args.random_seed))
     print("Dataset: {}".format(args.dataset))
     print("Algorithm: {}".format(args.algorithm))
     print(f'device{args.device}')

@@ -1,0 +1,44 @@
+{
+  "aim": {
+    "_type": "choice",
+    "_value": ["fedda_wo_eds"]
+  },
+  "local_learning_rate": {
+    "_type": "loguniform",
+    "_value": [1e-5, 0.01]
+  },
+  "server_learning_rate": {
+    "_type": "loguniform",
+    "_value": [1e-6, 0.001]
+  },
+  "optimizer_client": {
+    "_type": "choice",
+    "_value": ["adam", "adamod"]
+  },
+  "optimizer_server": {
+    "_type": "choice",
+    "_value": ["adam", "adamod"]
+  },
+  "local_epochs": {
+    "_type": "int_uniform",
+    "_value": [1, 15]
+  },
+
+  "server_epochs": {
+    "_type": "int_uniform",
+    "_value": [1, 20]
+  },
+  "DA_loss": {
+    "_type": "choice",
+    "_value": ["adv+mmd","adv","mmd"]
+  },
+"lambda_mmd": {
+  "_type": "choice",
+  "_value": [0.0, 0.001, 0.01, 0.1, 1.0, 10.0],
+  "_extra": {
+    "conditions": {
+      "DA_loss": ["adv", "mmd"]
+    }
+  }
+}
+}

@@ -9,6 +9,7 @@ from utils.data_utils import read_client_data  #为什么要另外写
 import torch.utils.tensorboard as tb
 
 import nni
+from utils.root import find_project_root
 
 class Server(object):
     def __init__(self, args):
@@ -19,8 +20,9 @@ class Server(object):
         self.dp=args.dp
         self.batch_size=args.batch_size_server
         self.global_rounds=args.global_rounds
-        self.epoches=args.server_epochs
-        self.lr=float(args.server_learning_rate.split(',')[0])
+        self.epoches=int(args.server_epochs)###############################
+        # self.lr=float(args.server_learning_rate.split(',')[0])
+        self.lr=args.server_learning_rate
         self.schedule=args.server_schedule
         self.clip=args.server_clip
         self.algorithm = args.algorithm
@@ -38,10 +40,15 @@ class Server(object):
 
         # graph_path = '/home/zhouheng/project/FedDA/logs/test1/' + self.algorithm + '/' + TIMESTAMP + self.args.model_name  # localupdateEDI
         # self.graph_path='/home/zhouheng/project/FedDA/logs/test1/' + self.algorithm + '/'+args.aim+'/'+args.TIMESTAMP
-        self.graph_path='/home/zhouheng/project/FedDA/logs/test2/graph/' + self.algorithm + '/'+args.aim+'/'+args.TIMESTAMP
+        root_dir = find_project_root('FedDA')
+        #第一种路径  先分config和graph，再接试验任务。 第二种路径，先按任务分类，再config和graph
+        # directory = 'test2/config/'  # 比画图多一个/config/
+        self.graph_path = os.path.join(root_dir, "logs", args.directory, 'graph', args.algorithm, args.aim, args.TIMESTAMP)
+        # self.graph_path=root_dir+'/logs/0730/graph/' + self.algorithm + '/'+args.aim+'/'+args.TIMESTAMP
         self.writer = tb.SummaryWriter(self.graph_path)  # tensorboard文件存储的文件夹
 
         self.test_avg_loss=999
+        self.best_round_loss=[999,999,999,999]
     def set_clients(self, clientObj):#设置了就有n个client作为server的属性
         for i in range(1,1+self.num_clients):
             train_set = read_client_data(self.dataset, i,self.args, is_train=True)
@@ -86,20 +93,26 @@ class Server(object):
 
     def evaluate(self, round):
         stats = self.test_metrics()
-        total_test_loss = (torch.tensor([l*n for l,n in zip(stats[0],stats[1])])).sum()/(torch.tensor(stats[1]).sum())
-
-        # print("Averaged Train Loss: {:.4f}".format(train_loss))
-        print("Averaged Test loss: {:.4f}".format(torch.sqrt(total_test_loss)))
+        # total_test_loss = (torch.tensor([l*n for l,n in zip(stats[0],stats[1])])).sum()/(torch.tensor(stats[1]).sum())
+        #
+        # # print("Averaged Train Loss: {:.4f}".format(train_loss))
+        # print("Averaged Test loss: {:.4f}".format(torch.sqrt(total_test_loss)))
         for i in range(len(stats[0])):
             self.writer.add_scalar("test/round loss "+str(i+1), torch.sqrt(stats[0][i]), round)
+            if torch.sqrt(stats[0][i])<self.best_round_loss[i]:
+                self.best_round_loss[i]=torch.sqrt(stats[0][i])
         # nni.report_intermediate_result({"test/round loss 1": torch.sqrt(stats[0][0]).item(),
         #                                 "test/round loss 2": torch.sqrt(stats[0][1]).item(),
         #                                 "test/round loss 3": torch.sqrt(stats[0][2]).item() ,
         #                                 "test/round loss 4": torch.sqrt(stats[0][3]).item()})
-        self.writer.add_scalar("test/average loss", torch.sqrt(total_test_loss), round)
+        best_test_loss = (torch.tensor([torch.square(l)*n for l,n in zip(self.best_round_loss,stats[1])])).sum()/(torch.tensor(stats[1]).sum())
+
+        # print("Averaged Train Loss: {:.4f}".format(train_loss))
+        print("best avg loss: {:.4f}".format(torch.sqrt(best_test_loss)))
+        self.writer.add_scalar("test/average loss", torch.sqrt(best_test_loss), round)
         nni.report_intermediate_result({"test/average loss": torch.sqrt(stats[0][0]).item()})
-        if self.test_avg_loss>torch.sqrt(total_test_loss).item():
-            self.test_avg_loss=torch.sqrt(total_test_loss).item()
+        # if self.test_avg_loss>torch.sqrt(total_test_loss).item():
+        self.test_avg_loss=torch.sqrt(best_test_loss).item()
         print("Test score:" ,stats[2])
         # self.print_(test_acc, train_acc, train_loss)
         # print("Std Test loss: {:.4f}".format(np.std(accs)))

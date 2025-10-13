@@ -21,7 +21,7 @@ class Client(object):
         self.dataset = args.dataset
         self.device = args.device
         self.id = id  # integer
-
+        self.miu_su=args.miu_su
         self.train_samples = train_samples#用来干什么？计算RMSE吗？
         self.test_samples = test_samples
         self.batch_size = args.batch_size_client

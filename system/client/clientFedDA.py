@@ -66,3 +66,14 @@ class clientDA(Client):
             for new_param, old_param in zip(model.unique.parameters(), self.model.unique.parameters()):#可以选择
                 old_param.data = new_param.data.clone()
 
+    def soft_update(self, model):
+        if self.args.F_FedAvg:
+            for new_param, old_param in zip(model.F.parameters(), self.model.F.parameters()):#可以选择
+                old_param.data = self.miu_su * old_param.data + (1 - self.miu_su) * new_param.data
+        if self.args.EDI_FedAvg:
+            for new_param, old_param in zip(model.LHDR.parameters(), self.model.LHDR.parameters()):#可以选择
+                old_param.data = self.miu_su * old_param.data + (1 - self.miu_su) * new_param.data
+        if self.args.P_FedAvg:
+            for new_param, old_param in zip(model.unique.parameters(), self.model.unique.parameters()):#可以选择
+                old_param.data = self.miu_su * old_param.data + (1 - self.miu_su) * new_param.data
+

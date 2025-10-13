@@ -44,9 +44,9 @@ class serverDA(Server):
 
         # ---------------------- Early Stopping Variables ----------------------
         self.early_stop = getattr(args, 'early_stop', False)         # 是否启用早停
+        self.pretrain_early_stop = getattr(args, 'pretrain_early_stop', False)
         self.patience = 5              # 容忍多少轮不提升
         self.counter = 0                                             # 计数器
-        self.best_rmse = 0.0                                          # 最佳准确率
         self.early_stop_flag = False                                 # 是否触发早停
         # ----------------------------------------------------------------------
 
@@ -74,12 +74,35 @@ class serverDA(Server):
             if not self.args.fedeval:
                 self.evaluate(round=i+1)
 
+            if self.pretrain_early_stop:
+                # 假设 evaluate() 会把结果存到 self.rs_test_rmse 列表里
+                current_rmse = self.rs_test_rmse[-1] if len(self.rs_test_rmse) > 0 else 999
+                print(current_rmse,self.best_rmse)
+                if current_rmse < self.best_rmse-0.1:
+                    self.best_rmse = current_rmse
+                    self.counter = 0  # 重置计数器
+                    # 可选：保存当前最优模型
+                    # self.save_global_model(model_name="best_global_model.pth")
+                else:
+                    self.counter += 1
+                    print(f"[Early Stop] No improvement in accuracy. "
+                          f"Counter: {self.counter}/{self.patience}")
+
+                if self.counter >= self.patience:
+                    print("🔥🔥🔥 Early stopping triggered! Training halted due to no improvement.")
+                    print(f"Best rmse: {self.best_rmse:.4f} at round {i - self.counter}")
+                    self.early_stop_flag = True
+                    break  # 终止训练循环
+
 #---------------------------------------------------------------------
         self.aggregate_parameters()
 #----------------------------------------------------------------------
         for i in range(self.global_rounds_init+1,self.global_rounds+1):  # +1是为了evaluate吗
             print(f"Round{i}")
-            self.send_models()
+            if self.args.soft_update:
+                self.soft_update()
+            else:
+                self.send_models()
             print("\nEvaluate global model")
             if self.args.fedeval:
                 self.evaluate(round=i)
@@ -115,11 +138,11 @@ class serverDA(Server):
             # === 🛑🛑🛑 EARLY STOPPING CHECKPOINT (MONITOR TEST ACCURACY) 🛑🛑🛑 ===================================
             # ========================================================================================================
             if self.early_stop:   
-                # 假设 evaluate() 会把结果存到 self.rs_test_acc 列表里
-                current_acc = self.rs_test_acc[-1] if len(self.rs_test_acc) > 0 else 0.0
-
-                if current_acc > self.best_acc:
-                    self.best_acc = current_acc
+                # 假设 evaluate() 会把结果存到 self.rs_test_rmse 列表里
+                current_rmse = self.rs_test_rmse[-1] if len(self.rs_test_rmse) > 0 else 999
+                print(current_rmse,self.best_rmse)
+                if current_rmse < self.best_rmse-0.1:
+                    self.best_rmse = current_rmse
                     self.counter = 0  # 重置计数器
                     # 可选：保存当前最优模型
                     # self.save_global_model(model_name="best_global_model.pth")
@@ -130,14 +153,14 @@ class serverDA(Server):
 
                 if self.counter >= self.patience:
                     print("🔥🔥🔥 Early stopping triggered! Training halted due to no improvement.")
-                    print(f"Best Accuracy: {self.best_acc:.4f} at round {i - self.counter}")
+                    print(f"Best rmse: {self.best_rmse:.4f} at round {i - self.counter}")
                     self.early_stop_flag = True
                     break  # 终止训练循环
             # ========================================================================================================
             # === ✅ END OF EARLY STOPPING LOGIC =====================================================================
             # ========================================================================================================
         # print("\nBest accuracy.")
-        # print(max(self.rs_test_acc))
+        # print(max(self.rs_test_rmse))
 
         # self.save_results()
         # self.save_global_model()
@@ -268,6 +291,12 @@ class serverDA(Server):
             for server_param, client_param in zip(self.global_model.LHDR.parameters(), client_model.LHDR.parameters()):
                 server_param.data += client_param.data.clone() * w
 
+    def soft_update(self):
+        assert (len(self.clients) > 0)
+
+        for client in self.clients:
+            client.soft_update(self.global_model)
+
 
 def compute_mmd_loss(features, domain_labels, sigma=1.0):
     domains = torch.unique(domain_labels)#所有元素放到一个tensor
@@ -286,3 +315,4 @@ def compute_mmd_loss(features, domain_labels, sigma=1.0):
             mmd_loss = mmd_loss+mmd_rbf(features_i, features_j)
 
     return mmd_loss
+

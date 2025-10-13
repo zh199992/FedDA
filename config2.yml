@@ -1,10 +1,10 @@
-experimentName: FedDA-NNI-Tuning
+experimentName: soft_update+oldmodel+pretrainearlystop
 trialCommand: python main_nni.py
 trialCodeDirectory: .
 trialConcurrency: 1 #导致一个显卡跑n个实验
 trialGpuNumber: 1 #设置这个不能跑
-maxTrialNumber: 100
-searchSpaceFile: ./search_space/random_seed.json
+maxTrialNumber: 400
+searchSpaceFile: ./search_space/soft_update+pretrainearlystop.json
 tuner:
   name: TPE
   classArgs:

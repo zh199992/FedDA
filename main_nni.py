@@ -107,12 +107,12 @@ def run(args):
             if args.EDS:
                 args.model = model.GHDR_FL_testeds(data_dim,args.conv_init,args.gru_init, args.linear_init).to(args.device)
             else:
-                # args.model = model.GHDR_FL(data_dim,args.conv_init,args.gru_init, args.linear_init).to(args.device)
-                args.model = model.GHDR_FL_new(data_dim,args.conv_init,args.gru_init, args.linear_init).to(args.device)
+                args.model = model.GHDR_FL(data_dim,args.conv_init,args.gru_init, args.linear_init).to(args.device)
+                # args.model = model.GHDR_FL_new(data_dim,args.conv_init,args.gru_init, args.linear_init).to(args.device)
         else:
             raise NotImplementedError
-        # args.server_model=model.Cloud_GHDR(data_dim,args.window_size, args.num_clients,args.conv_init, args.linear_init).to(args.device)
-        args.server_model=model.Cloud_GHDR_new(data_dim,args.window_size, args.num_clients,args.conv_init, args.linear_init).to(args.device)
+        args.server_model=model.Cloud_GHDR(data_dim,args.window_size, args.num_clients,args.conv_init, args.linear_init).to(args.device)
+        # args.server_model=model.Cloud_GHDR_new(data_dim,args.window_size, args.num_clients,args.conv_init, args.linear_init).to(args.device)
         server = serverDA(args)
     elif args.algorithm == "FedAvgiid":
         if model_str == "cnn1D":
@@ -183,9 +183,11 @@ if __name__ == '__main__':
     parser.add_argument('-nc', "--num_clients", type=int, default=4,
                         help="Total number of clients")
     parser.add_argument('-soft_update', "--soft_update", type=bool, default=False)#我想到T/F可以用0/1来表示
+    parser.add_argument('-miu_su', "--miu_su", type=float, default=0.05)
     parser.add_argument('-gr_i', "--global_rounds_init", type=int, default=0)
-    parser.add_argument('-gr', "--global_rounds", type=int, default=10)
+    parser.add_argument('-gr', "--global_rounds", type=int, default=100)
     parser.add_argument('-early_stop', "--early_stop", type=bool, default=True)
+    parser.add_argument('-pretrain_early_stop', "--pretrain_early_stop", type=bool, default=True)
     # parser.add_argument('-le', "--local_epochs", type=str, default='50,5',
     #                     help="Multiple update steps in one local epoch.")
     parser.add_argument('-le', "--local_epochs", type=int, default=0,

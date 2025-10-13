@@ -48,7 +48,9 @@ class Server(object):
         self.writer = tb.SummaryWriter(self.graph_path)  # tensorboard文件存储的文件夹
 
         self.test_avg_loss=999
-        self.best_round_loss=[999,999,999,999]
+        self.rs_test_rmse=[]
+        self.best_rmse=999
+        self.client_best_loss=[999,999,999,999]
     def set_clients(self, clientObj):#设置了就有n个client作为server的属性
         for i in range(1,1+self.num_clients):
             train_set = read_client_data(self.dataset, i,self.args, is_train=True)
@@ -66,6 +68,8 @@ class Server(object):
 
         for client in self.clients:
             client.set_parameters(self.global_model)
+
+
 
     def receive_models_features(self):
         # 断言语句 不满足会触发AssertionError
@@ -99,20 +103,22 @@ class Server(object):
         # print("Averaged Test loss: {:.4f}".format(torch.sqrt(total_test_loss)))
         for i in range(len(stats[0])):
             self.writer.add_scalar("test/round loss "+str(i+1), torch.sqrt(stats[0][i]), round)
-            if torch.sqrt(stats[0][i])<self.best_round_loss[i]:
-                self.best_round_loss[i]=torch.sqrt(stats[0][i])
+            if torch.sqrt(stats[0][i])<self.client_best_loss[i]:#stats里是MSE
+                self.client_best_loss[i]=torch.sqrt(stats[0][i])
         # nni.report_intermediate_result({"test/round loss 1": torch.sqrt(stats[0][0]).item(),
         #                                 "test/round loss 2": torch.sqrt(stats[0][1]).item(),
         #                                 "test/round loss 3": torch.sqrt(stats[0][2]).item() ,
         #                                 "test/round loss 4": torch.sqrt(stats[0][3]).item()})
-        best_test_loss = (torch.tensor([torch.square(l)*n for l,n in zip(self.best_round_loss,stats[1])])).sum()/(torch.tensor(stats[1]).sum())
+        best_avg_test_loss = (torch.tensor([torch.square(l)*n for l,n in zip(self.client_best_loss,stats[1])])).sum()/(torch.tensor(stats[1]).sum())
+        best_avg_test_loss=torch.sqrt(best_avg_test_loss)
 
         # print("Averaged Train Loss: {:.4f}".format(train_loss))
-        print("best avg loss: {:.4f}".format(torch.sqrt(best_test_loss)))
-        self.writer.add_scalar("test/average loss", torch.sqrt(best_test_loss), round)
+        print("best avg test loss: {:.4f}".format(best_avg_test_loss))
+        self.writer.add_scalar("test/average loss", best_avg_test_loss, round)
         nni.report_intermediate_result({"test/average loss": torch.sqrt(stats[0][0]).item()})
         # if self.test_avg_loss>torch.sqrt(total_test_loss).item():
-        self.test_avg_loss=torch.sqrt(best_test_loss).item()
+        self.test_avg_loss=best_avg_test_loss.item()
+        self.rs_test_rmse.append(self.test_avg_loss)
         print("Test score:" ,stats[2])
         # self.print_(test_acc, train_acc, train_loss)
         # print("Std Test loss: {:.4f}".format(np.std(accs)))

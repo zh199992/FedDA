@@ -79,6 +79,34 @@
           </mappings>
         </serverdata>
       </paths>
+      <paths name="zh@10.13.74.98:6012 key">
+        <serverdata>
+          <mappings>
+            <mapping local="$PROJECT_DIR$" web="/" />
+          </mappings>
+        </serverdata>
+      </paths>
+      <paths name="zh@10.13.74.98:6012 key (2)">
+        <serverdata>
+          <mappings>
+            <mapping local="$PROJECT_DIR$" web="/" />
+          </mappings>
+        </serverdata>
+      </paths>
+      <paths name="zh@10.13.74.98:6012 key (3)">
+        <serverdata>
+          <mappings>
+            <mapping local="$PROJECT_DIR$" web="/" />
+          </mappings>
+        </serverdata>
+      </paths>
+      <paths name="zh@10.13.74.98:6012 key (4)">
+        <serverdata>
+          <mappings>
+            <mapping local="$PROJECT_DIR$" web="/" />
+          </mappings>
+        </serverdata>
+      </paths>
       <paths name="zhouheng@10.13.74.54:9001 agent">
         <serverdata>
           <mappings>
@@ -111,6 +139,13 @@
         <serverdata>
           <mappings>
             <mapping deploy="/home/zhouheng/project/FedDA" local="$PROJECT_DIR$" />
+          </mappings>
+        </serverdata>
+      </paths>
+      <paths name="zhouheng@10.13.74.54:9001 key (13)">
+        <serverdata>
+          <mappings>
+            <mapping local="$PROJECT_DIR$" web="/" />
           </mappings>
         </serverdata>
       </paths>

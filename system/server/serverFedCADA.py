@@ -1,23 +1,24 @@
-from system.client.clientFedAvg import clientAvg
+from system.client.clientFedCADA import clientCADA
 from system.server.serverbase import Server
 import copy
 import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
-from utils.data_utils import CombinedDataset, MyDataset, visualize_features_with_rul, compute_rul_silhouette_score, regresssion_feature, plot_all_clients_features
+from utils.data_utils import CombinedDataset, MyDataset, visualize_features_with_rul, compute_rul_silhouette_score
 from utils.mmdloss import mmd_rbf
 import adamod
-import nni
 
+import nni
+import sys
 #改变1 不用receive_models改用receive_models_and_features 2 cloudda 3重写aggregate_parameters和add_parameters 和lr 4.云端的optimizer和dataset  global model也得改
 #首先，我有四个client的特征，要减小他们四个被LHDR处理后的距离
 #下发是通过global_model的，因此如果EDI不在global model里更新就是无效训练？
-class serverDA(Server):
+class serverFedCADA(Server):
     # def __init__(self, device, server_config):
     def __init__(self, args):
         super().__init__(args)
         self.global_model = copy.deepcopy(args.server_model)###########33
-        self.set_clients(clientAvg)
+        self.set_clients(clientCADA)
         print("Finished creating server and clients.")
         self.lr1=args.server_learning_rate
         # self.lr1=float(args.server_learning_rate.split(',')[0])
@@ -51,8 +52,10 @@ class serverDA(Server):
         # ----------------------------------------------------------------------
 
     def train(self):
+        self.RUL_CE()
+        sys.exit("完成")
         init_round = self.global_rounds_init
-        for i in range(self.global_rounds_init+1):
+        for i in range(self.global_rounds_init+1):#默认是0
             print("\nEvaluate global model")
             if self.args.fedeval:
                 self.evaluate(round=i)
@@ -133,7 +136,11 @@ class serverDA(Server):
                 optimizer=self.optimizer,
                 gamma=self.args.learning_rate_decay_gamma)
             if self.args.enable_cloud_da:
-                self.cloud_da1(global_round=i)
+                if self.args.new_da:
+
+                    self.cloud_da2(global_round=i)
+                else:
+                    self.cloud_da1(global_round=i)
 
             if not self.args.fedeval:
                 self.evaluate(round=i+1)
@@ -164,10 +171,6 @@ class serverDA(Server):
             # ========================================================================================================
             # === ✅ END OF EARLY STOPPING LOGIC =====================================================================
             # ========================================================================================================
-
-        # print(plot_all_clients_features(self.uploaded_middle_features, self.uploaded_labels))
-        scores = plot_all_clients_features(self.uploaded_middle_features, self.uploaded_labels)
-        print(scores)
         # print("\nBest accuracy.")
         # print(max(self.rs_test_rmse))
 
@@ -183,8 +186,8 @@ class serverDA(Server):
                 batch_data = batch_data.to(self.device)
                 batch_domains=batch_domains.to(self.device)
                 domain_preds, feature_DI=self.global_model(batch_data)
-                print(batch_domains,domain_preds,feature_DI)
                 domain_labels = batch_domains
+                print(domain_preds.size(), domain_labels.size())
                 adv_loss = self.advloss(domain_preds, domain_labels)
                 mmd_loss = compute_mmd_loss(feature_DI, batch_domains)
                 self.writer.add_scalar('train/server_mmd', mmd_loss, global_step + i)
@@ -244,7 +247,41 @@ class serverDA(Server):
             if self.learning_rate_decay:
                 self.learning_rate_scheduler.step()
 
-    # def cloud_da2(self):  #一个其他采样方法
+    def cloud_da2(self,global_round):
+        #1.得到标签 2.dataloader 3.训练 4.输出/画出结果
+        for epoch in range(self.epoches):
+            global_step = (global_round * (self.epoches) + epoch) * len(self.combined_loader)#1.4e6/1024=1.4e3个batch -se=10的话，云端有1.4e4个step 143533/1024=141
+            for clientid in range(self.num_clients):
+                for i, (batch_data, _) in enumerate(self.cloud_shallow_loader_list[clientid]):
+                    self.optimizer.zero_grad()
+                    batch_data = batch_data.to(self.device)
+                    batch_domains=batch_domains.to(self.device)
+                    domain_preds, feature_DI=self.global_model(batch_data)
+                    domain_labels = batch_domains
+                    print(domain_preds.size(), domain_labels.size())
+                    adv_loss = self.advloss(domain_preds, domain_labels)
+                    mmd_loss = compute_mmd_loss(feature_DI, batch_domains)
+
+                    self.writer.add_scalar('train/server_mmd', mmd_loss, global_step + i)
+                    self.writer.add_scalar('train/server_adv', adv_loss, global_step + i)
+                    if self.DA_loss=='mmd':
+                        total_loss = mmd_loss
+                    elif self.DA_loss=='adv':
+                        total_loss = adv_loss
+                    elif self.DA_loss=='adv+mmd':
+                        total_loss = adv_loss + self.lambda_mmd*mmd_loss#gamma    (1-gamma     ) [0,1] 0.1
+                        total_loss = self.gamma*adv_loss + (1-self.gamma)*mmd_loss#gamma    (1-gamma     ) [0,1] 0.1
+
+                    elif  self.DA_loss=='none':
+                        total_loss = 0
+                    else:
+                        raise NotImplementedError
+
+                    total_loss.backward()
+                    self.optimizer.step()
+                #-------------------------------------------------------
+                if self.learning_rate_decay:
+                    self.learning_rate_scheduler.step()
 
 
     def receive_models_features(self):
@@ -258,7 +295,9 @@ class serverDA(Server):
         self.uploaded_models = []
         self.uploaded_shallow_sets = [] #存四个dataset
         self.uploaded_middle_features = []
-        self.uploaded_labels = []
+
+        self.cloud_shallow_loader_list= []
+
 
         tot_samples = 0
         for i, client in enumerate(active_clients):
@@ -270,10 +309,11 @@ class serverDA(Server):
             dataset=MyDataset(uploaded_shallow,uploaded_shallow)
             self.uploaded_shallow_sets.append(dataset)  ####改动
 
+            self.cloud_shallow_loader_list.append(DataLoader(dataset, batch_size=self.batch_size, shuffle=True))
+
             uploaded_middle=torch.cat(client.middle_feature,dim=0)
             self.uploaded_middle_features.append(uploaded_middle)
-            uploaded_label=torch.cat(client.label,dim=0)
-            self.uploaded_labels.append(uploaded_label)
+
 
         self.combined_loader=DataLoader(CombinedDataset(self.uploaded_shallow_sets), batch_size=self.batch_size, shuffle=True)
 
@@ -328,3 +368,12 @@ def compute_mmd_loss(features, domain_labels, sigma=1.0):
 
     return mmd_loss
 
+def get_feature(self):
+    self.shallow_feature=[]
+    self.middle_feature=[]
+    for i, (x, y) in enumerate(self.trainloader):
+        x = x.to(self.device)
+        y = y.to(self.device)
+        _, shallow, middle, _ = self.model(x)
+        self.shallow_feature.append(shallow.detach())
+        self.middle_feature.append(middle.detach())

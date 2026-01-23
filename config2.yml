@@ -1,10 +1,10 @@
-experimentName: soft_update+oldmodel+pretrainearlystop
-trialCommand: python main_nni.py
+experimentName: cada
+trialCommand: python main_1021.py
 trialCodeDirectory: .
 trialConcurrency: 1 #导致一个显卡跑n个实验
 trialGpuNumber: 1 #设置这个不能跑
 maxTrialNumber: 400
-searchSpaceFile: ./search_space/soft_update+pretrainearlystop.json
+searchSpaceFile: ./search_space/bestind.json
 tuner:
   name: TPE
   classArgs:

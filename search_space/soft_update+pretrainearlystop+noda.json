@@ -1,0 +1,73 @@
+{
+  "aim": {
+    "_type": "choice",
+    "_value": ["fedper_with_eds+conv+soft_update+oldmodel+pretrainearlystop"]
+  },
+  "local_learning_rate": {
+    "_type": "loguniform",
+    "_value": [0.00001, 0.01]
+  },
+
+  "optimizer_client": {
+    "_type": "choice",
+    "_value": ["adam", "adamod"]
+  },
+
+  "local_epochs": {
+    "_type": "int_uniform",
+    "_value": [1, 15]
+  },
+  "miu_su": {
+    "_type": "uniform",
+    "_value": [0,1]
+  },
+  "global_rounds_init": {
+    "_type": "choice",
+    "_value": [50]
+  },
+  "conv_init": {
+    "_type": "choice",
+    "_value": [
+      "kaiming_uniform",
+      "kaiming_normal",
+      "xavier_uniform",
+      "xavier_normal",
+      "normal",
+      "uniform"
+    ]
+  },
+  "gru_init": {
+    "_type": "choice",
+    "_value": [
+      "kaiming_uniform",
+      "kaiming_normal",
+      "xavier_uniform",
+      "xavier_normal",
+      "normal",
+      "uniform"
+    ]
+  },
+  "linear_init": {
+    "_type": "choice",
+    "_value": [
+      "kaiming_uniform",
+      "kaiming_normal",
+      "xavier_uniform",
+      "xavier_normal",
+      "normal",
+      "uniform"
+    ]
+  },
+  "EDS": {
+    "_type": "choice",
+    "_value": [true]
+  },
+  "EDI_FedAvg": {
+    "_type": "choice",
+    "_value": [true]
+  },
+  "soft_update": {
+    "_type": "choice",
+    "_value": [true]
+  }
+}

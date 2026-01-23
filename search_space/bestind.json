@@ -1,0 +1,86 @@
+{
+  "aim": {
+    "_type": "choice",
+    "_value": ["test_drawing_func"]
+  },
+  "algorithm": {
+    "_type": "choice",
+    "_value": ["FedDA"]
+  },
+  "local_learning_rate": {
+    "_type": "choice",
+    "_value": [0.0018748364185708442]
+  },
+  "server_learning_rate": {
+    "_type": "choice",
+    "_value": [0.0003977553741859016]
+  },
+    "train_ratio": {
+    "_type": "choice",
+    "_value": [1.0]
+  },
+  "optimizer_client": {
+    "_type": "choice",
+    "_value": ["adam"]
+  },
+  "optimizer_server": {
+    "_type": "choice",
+    "_value": ["adamod"]
+  },
+  "local_epochs": {
+    "_type": "choice",
+    "_value": [13]
+  },
+  "server_epochs": {
+    "_type": "choice",
+    "_value": [6]
+  },
+  "DA_loss": {
+    "_type": "choice",
+    "_value": ["adv+mmd"]
+  },
+  "gamma": {
+    "_type": "choice",
+    "_value": [0.798375803093945]
+  },
+  "global_rounds_init": {
+    "_type": "choice",
+    "_value": [3]
+  },
+  "conv_init": {
+    "_type": "choice",
+    "_value": ["uniform"]
+  },
+  "gru_init": {
+    "_type": "choice",
+    "_value": ["uniform"]
+  },
+  "linear_init": {
+    "_type": "choice",
+    "_value": ["xavier_uniform"]
+  },
+  "F_FedAvg": {
+    "_type": "choice",
+    "_value": [true]
+  },
+  "EDI_FedAvg": {
+    "_type": "choice",
+    "_value": [true]
+  },
+  "P_FedAvg": {
+    "_type": "choice",
+    "_value": ["false"]
+  },
+    "new_da": {
+    "_type": "choice",
+    "_value": ["false"]
+  },
+  "enable_cloud_da": {
+    "_type": "choice",
+    "_value": ["true"]
+  },
+    "enable_CADA": {
+    "_type": "choice",
+    "_value": ["false"]
+  }
+}

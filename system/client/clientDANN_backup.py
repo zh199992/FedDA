@@ -39,8 +39,7 @@ class clientDANN(Client):
         self.best_source_test_loss = 999
         self.best_target_test_loss = 999
         self.gamma = args.gamma
-        self.model_backup = copy.deepcopy(self.model)
-        self.per_layer = None
+
     def train(self):
         print(f"[Client {self.source_id}] Source train data stats:")
         for i, (x1, y1) in enumerate(self.source_trainloader):
@@ -77,6 +76,8 @@ class clientDANN(Client):
                 #     self.counter += 1
                 if torch.sqrt(tgt_test_loss) < self.best_target_test_loss:
                     self.best_target_test_loss = torch.sqrt(tgt_test_loss)
+                # if torch.sqrt(src_test_loss) < self.best_source_test_loss:
+                #     self.best_source_test_loss = torch.sqrt(src_test_loss)
                     self.counter=0
                 else:
                     self.counter += 1
@@ -92,10 +93,6 @@ class clientDANN(Client):
 
             if self.early_stop_flag == True:
                 break
-
-            if self.per_layer == True:
-                for new_param, old_param in zip(self.model_backup.unique.parameters(), self.self.model.unique.parameters()):  # 可以选择
-                    old_param.data = new_param.data.clone()
 
             self.model.train()
             for i, (data1, data2) in enumerate(zip(self.source_trainloader, self.target_train_loader)):#zip会在任一耗尽时停止
@@ -122,17 +119,17 @@ class clientDANN(Client):
                 if self.mode == 'baseline':
                     loss = src_reg_loss
                 elif self.mode == 'dann' or "centralized":
-                    loss = self.gamma* src_reg_loss + (1-self.gamma) * dis_loss
+                    loss = src_reg_loss + self.gamma* dis_loss
                     # loss = src_reg_loss + self.gamma * dis_loss
                 elif self.mode == 'mmd':
-                    loss = self.gamma* src_reg_loss + (1-self.gamma) * mmd_loss
+                    loss = src_reg_loss + self.gamma* mmd_loss
                     # loss = src_reg_loss + self.gamma * mmd_loss
                 elif self.mode == 'dann+mmd':#???
                     # loss = self.gamma* src_reg_loss + (1-self.gamma) * dis_loss + (1-self.gamma) * mmd_loss
                     loss = src_reg_loss + self.gamma * dis_loss + self.gamma * mmd_loss
                 elif self.mode == "mutual":
                     # loss = self.gamma* src_reg_loss + self.gamma* tgt_reg_loss + (1-self.gamma) * dis_loss
-                    loss = src_reg_loss + tgt_reg_loss + (1-self.gamma)/self.gamma * dis_loss
+                    loss = src_reg_loss + tgt_reg_loss + self.gamma * dis_loss
                     # loss = src_reg_loss + tgt_reg_loss + (1-self.gamma)/self.gamma * dis_loss
                 else:
                     raise ValueError('Invalid mode')

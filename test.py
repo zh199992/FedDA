@@ -8,10 +8,145 @@ import os
 import torch
 from models import model, fsae
 import torch
+import copy
 import torch.nn as nn
 import torch.nn.functional as F
-
+print( torch.tensor([5.0,1.0,2.0,3.0]).norm(2))
 # Reconstruction Loss
+import numpy as np
+import matplotlib.pyplot as plt
+from utils.data_utils import visualize_features_with_rul, compute_rul_silhouette_score
+
+if __name__ == "__main__":
+    feature = torch.rand([1024,30,18]).to('cuda')
+    label = torch.randint(0,125,[1024,1]).to('cuda')
+    fig, axes = plt.subplots(2, 2, figsize=(12, 10))
+    axes2 = axes.flatten()
+    for i in range(4):
+        # 展平特征 (b, 30, 18) -> (b, 540)
+        features = feature.flatten(start_dim=1)
+        rul_labels = label
+
+        # 降维（不绘图）
+        embedding = visualize_features_with_rul(features, rul_labels, method='auto')  # 现在这个函数只降维！
+
+        # 在子图上绘制
+        ax = copy.deepcopy(axes2[i])
+        scatter = ax.scatter(embedding[:, 0], embedding[:, 1], c=rul_labels, cmap='viridis', s=15, alpha=0.7)
+        ax.set_title(f"{i+1}", fontsize=10)
+        ax.set_xlabel('Dim 1')
+        ax.set_ylabel('Dim 2')
+        ax.grid(True, linestyle='--', alpha=0.3)#这个ax对象根本没被用到，
+
+        if i == 0:
+            cbar = plt.colorbar(scatter, ax=ax, shrink=0.8)
+            cbar.set_label('RUL')
+
+
+    plt.tight_layout()
+    plt.show()
+    # 确保目录存在
+    import os
+    os.makedirs(os.path.dirname(save_path) if os.path.dirname(save_path) else '.', exist_ok=True)
+    plt.savefig(save_path, dpi=150, bbox_inches='tight')
+    plt.close()
+    print(f"✅ 所有客户端特征图已保存至: {save_path}")
+    np.random.seed(42)
+    torch.manual_seed(42)
+
+    # 模拟参数
+    N = 2000          # 样本数
+    D = 50            # 特征维度（类似 C-MAPSS 中间层特征）
+    max_rul = 125
+
+    # 生成 RUL 标签：集中在 125（模拟 C-MAPSS）
+    # 使用 beta 分布模拟右偏：大部分接近 125
+    rul_raw = np.random.beta(0.5, 5, size=N)  # 右偏分布
+    rul_labels = max_rul * (1 - rul_raw)      # 映射到 [0, 125]，但集中在 125
+    rul_labels = np.clip(rul_labels, 0, max_rul)
+
+    # 生成特征：让特征与 RUL 有一定相关性（模拟“好模型”学到的特征）
+    # 简单方式：主成分与 RUL 相关，其余为噪声
+    features = np.random.randn(N, D)
+    features[:, 0] = rul_labels / max_rul + 0.1 * np.random.randn(N)  # 第一维与 RUL 强相关
+    features[:, 1] = (rul_labels / max_rul)**2 + 0.1 * np.random.randn(N)  # 非线性相关
+
+    # 转为 PyTorch 张量（模拟实际训练输出）
+    features_tensor = torch.tensor(features, dtype=torch.float32)
+    rul_tensor = torch.tensor(rul_labels, dtype=torch.float32)
+
+    print("📊 模拟数据生成完成！")
+    print(f"   - 样本数: {N}")
+    print(f"   - 特征维度: {D}")
+    print(f"   - RUL 范围: [{rul_labels.min():.1f}, {rul_labels.max():.1f}]")
+    print(f"   - RUL 均值: {rul_labels.mean():.1f}（应接近 125）")
+
+    # 测试可视化函数
+    print("\n🎨 正在测试可视化函数...")
+    embedding = visualize_features_with_rul(
+        features_tensor,
+        rul_tensor,
+        method='auto',
+        title="Simulated C-MAPSS Features"
+    )
+
+    # 测试聚类指标
+    print("\n📈 正在计算 RUL 聚类质量指标...")
+    score = compute_rul_silhouette_score(features_tensor, rul_tensor, n_bins=10)
+    print(f"✅ RUL-based Silhouette Score: {score:.4f}")
+    print("   - 越接近 1 表示 RUL 相似样本越聚集")
+    print("   - 负值表示无聚类结构")
+
+    print("\n🎉 所有函数运行成功！")
+def normalized_entropy(probs, n_bins):
+    probs = np.array(probs)
+    nonzero = probs[probs > 0]
+    entropy = -np.sum(nonzero * np.log(nonzero + 1e-12))  # 防止 log(0)
+    return entropy / np.log(n_bins)
+
+n_bins = 20
+bin_centers = np.arange(1, n_bins + 1)  # 1 to 20
+
+# === 分布 A：目标熵 ≈ 0.868（较均衡）===
+# 模拟：大部分 bin 有样本，但尾部（高 RUL）自然衰减
+p_A = np.zeros(n_bins)
+p_A[:15] = np.exp(-np.linspace(0, 1.8, 15))   # 前15个 bin 有值
+p_A[15:] = 0.01  # 尾部保留极小值避免熵过高
+p_A = p_A / p_A.sum()
+
+# === 分布 B：目标熵 ≈ 0.766（明显偏斜）===
+# 模拟：仅前 10 个 bin 有显著样本，后 10 个几乎为 0
+p_B = np.zeros(n_bins)
+p_B[:10] = np.exp(-np.linspace(0, 2.5, 10))   # 快速衰减
+p_B[10:] = 0.001  # 极小扰动
+p_B = p_B / p_B.sum()
+
+H_A = normalized_entropy(p_A, n_bins)
+H_B = normalized_entropy(p_B, n_bins)
+
+print(f"分布 A（较均衡）归一化熵: {H_A:.3f}")
+print(f"分布 B（偏斜）归一化熵:   {H_B:.3f}")
+
+# 绘图
+plt.figure(figsize=(10, 4))
+
+plt.subplot(1, 2, 1)
+plt.bar(bin_centers, p_A, color='steelblue', width=0.8)
+plt.title(f'较均衡分布\n归一化熵 = {H_A:.3f}')
+plt.xlabel('RUL Bin (1=低RUL, 20=高RUL)')
+plt.ylabel('概率')
+plt.ylim(0, max(p_A.max(), p_B.max()) * 1.1)
+
+plt.subplot(1, 2, 2)
+plt.bar(bin_centers, p_B, color='crimson', width=0.8)
+plt.title(f'偏斜分布（尾部缺失）\n归一化熵 = {H_B:.3f}')
+plt.xlabel('RUL Bin')
+plt.ylabel('概率')
+plt.ylim(0, max(p_A.max(), p_B.max()) * 1.1)
+
+plt.tight_layout()
+plt.show()
+
 def reconstruction_loss(x, x_recon):
     return F.mse_loss(x_recon, x)
 

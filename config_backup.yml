@@ -1,10 +1,10 @@
-experimentName: cada
-trialCommand: python main_nni.py
+experimentName: finalFedDAnoda
+trialCommand: python main_1021.py
 trialCodeDirectory: .
 trialConcurrency: 1 #导致一个显卡跑n个实验
 trialGpuNumber: 1 #设置这个不能跑
-maxTrialNumber: 200
-searchSpaceFile: ./search_space/cada.json
+maxTrialNumber: 400
+searchSpaceFile: ./search_space/1126.json
 tuner:
   name: TPE
   classArgs:
@@ -15,5 +15,5 @@ trainingService:
   useActiveGpu: True
 
 #  useActiveGpu: false
-#  gpuIndices: [1,3] #设置了要爆
+#  gpuIndices: [0,3] #设置了要爆
 

@@ -1,0 +1,66 @@
+{
+  "aim": {
+    "_type": "choice",
+    "_value": ["FedDA+newda"]
+  },
+  "algorithm": {
+    "_type": "choice",
+    "_value": ["FedCADA"]
+  },
+  "new_da": {
+    "_type": "choice",
+    "_value": ["true"]
+  },
+  "local_learning_rate": {
+    "_type": "choice",
+    "_value": [0.001]
+  },
+  "batch_size_server": {
+    "_type": "choice",
+    "_value": [512]
+  },
+  "server_learning_rate": {
+    "_type": "choice",
+    "_value": [0.0001]
+  },
+  "optimizer_client": {
+    "_type": "choice",
+    "_value": ["adam"]
+  },
+  "optimizer_server": {
+    "_type": "choice",
+    "_value": ["adam"]
+  },
+  "local_epochs": {
+    "_type": "choice",
+    "_value": [50]
+  },
+  "server_epochs": {
+    "_type": "choice",
+    "_value": [10]
+  },
+  "DA_loss": {
+    "_type": "choice",
+    "_value": ["adv", "adv+mmd"]
+  },
+  "gamma": {
+    "_type": "choice",
+    "_value": [0.8]
+  },
+  "F_FedAvg": {
+    "_type": "choice",
+    "_value": ["true"]
+  },
+  "EDI_FedAvg": {
+    "_type": "choice",
+    "_value": ["true"]
+  },
+  "enable_CADA": {
+    "_type": "choice",
+    "_value": ["true"]
+  },
+  "enable_cloud_da": {
+    "_type": "choice",
+    "_value": ["true"]
+  }
+}

@@ -54,12 +54,14 @@ class Client(object):
     def get_feature(self):
         self.shallow_feature=[]
         self.middle_feature=[]
+        self.label = []
         for i, (x, y) in enumerate(self.trainloader):
             x = x.to(self.device)
             y = y.to(self.device)
             _, shallow, middle = self.model(x)
             self.shallow_feature.append(shallow.detach())
             self.middle_feature.append(middle.detach())
+            self.label.append(y.detach())
 
     def set_parameters(self, model):
         for new_param, old_param in zip(model.parameters(), self.model.parameters()):
@@ -68,7 +70,7 @@ class Client(object):
     def load_train_data(self, batch_size=None):
         if batch_size == None:
             batch_size = self.batch_size
-        train_data = read_client_data(self.dataset, self.id, self.args, is_train=True)
+        train_data = read_client_data(self.dataset, self.id, self.args, is_train=True, train_ratio=self.args.train_ratio)
         return DataLoader(train_data, batch_size, drop_last=False, shuffle=True)
 
     def load_test_data(self, batch_size=None):

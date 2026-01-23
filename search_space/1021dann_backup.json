@@ -1,0 +1,29 @@
+{
+  "aim": {
+    "_type": "choice",
+    "_value": [
+      "dann_newloss_newgamma_newmodel"
+    ]
+  },
+  "source_id": {
+    "_type": "choice",
+    "_value": [
+      1,      2,      3,      4    ]
+  },
+  "target_id": {
+    "_type": "choice",
+    "_value": [
+      1,      2,      3,      4    ]
+  },
+  "mode": {
+    "_type": "choice",
+    "_value": [
+      "dann"
+    ]
+  },
+  "gamma": {
+    "_type": "choice",
+    "_value":  [0.0, 1e-4, 1e-3, 1e-2, 1e-1, 0.25, 0.5, 1.0, 2.0, 4.0, 10, 100, 1000 ]
+
+  }
+}

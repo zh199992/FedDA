@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
-  <component name="PublishConfigData" autoUpload="On explicit save action" serverName="98" remoteFilesAllowedToDisappearOnAutoupload="false" autoUploadExternalChanges="true" showNewOnTargetInSync="false">
+  <component name="PublishConfigData" autoUpload="Always" serverName="zh@10.13.74.98:6012 key (5)" remoteFilesAllowedToDisappearOnAutoupload="false" autoUploadExternalChanges="true" showNewOnTargetInSync="false">
     <serverData>
       <paths name="54_fltest">
         <serverdata>
@@ -61,49 +61,28 @@
       <paths name="zh@10.13.74.98:6012 key (2)">
         <serverdata>
           <mappings>
+            <mapping local="$PROJECT_DIR$" web="/" />
+          </mappings>
+        </serverdata>
+      </paths>
+      <paths name="zh@10.13.74.98:6012 key (3)">
+        <serverdata>
+          <mappings>
+            <mapping local="$PROJECT_DIR$" web="/" />
+          </mappings>
+        </serverdata>
+      </paths>
+      <paths name="zh@10.13.74.98:6012 key (4)">
+        <serverdata>
+          <mappings>
+            <mapping local="$PROJECT_DIR$" web="/" />
+          </mappings>
+        </serverdata>
+      </paths>
+      <paths name="zh@10.13.74.98:6012 key (5)">
+        <serverdata>
+          <mappings>
             <mapping deploy="/data/4T/zh_file/project/FedDA" local="$PROJECT_DIR$" />
-          </mappings>
-        </serverdata>
-      </paths>
-      <paths name="zh@10.13.74.98:6012 key (3)">
-        <serverdata>
-          <mappings>
-            <mapping local="$PROJECT_DIR$" web="/" />
-          </mappings>
-        </serverdata>
-      </paths>
-      <paths name="zh@10.13.74.98:6012 key (4)">
-        <serverdata>
-          <mappings>
-            <mapping local="$PROJECT_DIR$" web="/" />
-          </mappings>
-        </serverdata>
-      </paths>
-      <paths name="zh@10.13.74.98:6012 key">
-        <serverdata>
-          <mappings>
-            <mapping local="$PROJECT_DIR$" web="/" />
-          </mappings>
-        </serverdata>
-      </paths>
-      <paths name="zh@10.13.74.98:6012 key (2)">
-        <serverdata>
-          <mappings>
-            <mapping local="$PROJECT_DIR$" web="/" />
-          </mappings>
-        </serverdata>
-      </paths>
-      <paths name="zh@10.13.74.98:6012 key (3)">
-        <serverdata>
-          <mappings>
-            <mapping local="$PROJECT_DIR$" web="/" />
-          </mappings>
-        </serverdata>
-      </paths>
-      <paths name="zh@10.13.74.98:6012 key (4)">
-        <serverdata>
-          <mappings>
-            <mapping local="$PROJECT_DIR$" web="/" />
           </mappings>
         </serverdata>
       </paths>
@@ -139,13 +118,6 @@
         <serverdata>
           <mappings>
             <mapping deploy="/home/zhouheng/project/FedDA" local="$PROJECT_DIR$" />
-          </mappings>
-        </serverdata>
-      </paths>
-      <paths name="zhouheng@10.13.74.54:9001 key (13)">
-        <serverdata>
-          <mappings>
-            <mapping local="$PROJECT_DIR$" web="/" />
           </mappings>
         </serverdata>
       </paths>
@@ -213,6 +185,6 @@
         </serverdata>
       </paths>
     </serverData>
-    <option name="myAutoUpload" value="ON_EXPLICIT_SAVE" />
+    <option name="myAutoUpload" value="ALWAYS" />
   </component>
 </project>

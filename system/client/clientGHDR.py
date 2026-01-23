@@ -8,14 +8,14 @@ import adamod
 class clientGHDR(Client):
     def __init__(self, args, id, train_samples, test_samples, **kwargs):
         super().__init__(args, id, train_samples, test_samples, **kwargs)
-        self.learning_rate1 = float(args.local_learning_rate.split(',')[0])
-        self.learning_rate2 = float(args.local_learning_rate.split(',')[1])
+        self.learning_rate1 = args.local_learning_rate
+        self.learning_rate2 = args.local_learning_rate
         if self.args.optimizer_client == 'adamod':
-            self.optimizer1 = adamod.AdaMod(self.model.parameters(), lr=self.learning_rate1)
+            self.optimizer1 = adamod.AdaMod(self.model.unique.parameters(), lr=self.learning_rate1)
         elif self.args.optimizer_client == 'adam':
-            self.optimizer1 = torch.optim.Adam(self.model.parameters(), lr=self.learning_rate1)
+            self.optimizer1 = torch.optim.Adam(self.model.unique.parameters(), lr=self.learning_rate1)
         elif self.args.optimizer_client == 'sgd':
-            self.optimizer1 = torch.optim.SGD(self.model.parameters(), lr=self.learning_rate1)
+            self.optimizer1 = torch.optim.SGD(self.model.unique.parameters(), lr=self.learning_rate1)
         else:
             raise NotImplementedError
         self.learning_rate_scheduler1 = torch.optim.lr_scheduler.ExponentialLR(
@@ -23,19 +23,19 @@ class clientGHDR(Client):
             gamma=args.learning_rate_decay_gamma
         )
         if self.args.optimizer_client == 'adamod':
-            self.optimizer2 = adamod.AdaMod(self.model.parameters(), lr=self.learning_rate2)
+            self.optimizer2 = adamod.AdaMod(list(self.model.F.parameters()) + list(self.model.LHDR.parameters()), lr=self.learning_rate2)
         elif self.args.optimizer_client == 'adam':
-            self.optimizer2 = torch.optim.Adam(self.model.parameters(), lr=self.learning_rate2)
+            self.optimizer2 = torch.optim.Adam(list(self.model.F.parameters()) + list(self.model.LHDR.parameters()), lr=self.learning_rate2)
         elif self.args.optimizer_client == 'sgd':
-            self.optimizer2 = torch.optim.SGD(self.model.parameters(), lr=self.learning_rate2)
+            self.optimizer2 = torch.optim.SGD(list(self.model.F.parameters()) + list(self.model.LHDR.parameters()), lr=self.learning_rate2)
         else:
             raise NotImplementedError
         self.learning_rate_scheduler2 = torch.optim.lr_scheduler.ExponentialLR(
             optimizer=self.optimizer2,
             gamma=args.learning_rate_decay_gamma
         )
-        self.local_epochs1 = int(args.local_epochs.split(',')[0])
-        self.local_epochs2 = int(args.local_epochs.split(',')[1])
+        self.local_epochs1 = args.local_epochs
+        self.local_epochs2 = 50-args.local_epochs
 
 
     def train(self):
@@ -59,6 +59,9 @@ class clientGHDR(Client):
                 if self.client_clip==True:
                     grad = torch.nn.utils.clip_grad_norm_(self.model.unique.parameters(), max_norm=100)
                 self.optimizer1.step()
+            if self.learning_rate_decay:
+                self.learning_rate_scheduler1.step()
+            print(self.learning_rate_scheduler1.state_dict())
 
             for i, (x, y) in enumerate(self.testloader):
                 x = x.to(self.device)
@@ -67,8 +70,6 @@ class clientGHDR(Client):
                 loss = self.loss(output, y)
                 self.writer.add_scalar('test/client'+str(self.id),torch.sqrt(loss),global_step_test+i)
 
-            if self.learning_rate_decay:
-                self.learning_rate_scheduler1.step()
 
 
 
@@ -84,9 +85,11 @@ class clientGHDR(Client):
                 loss = self.loss(output, y)
                 self.writer.add_scalar('train/client'+str(self.id),torch.sqrt(loss),global_step+i)
                 self.optimizer2.zero_grad()
+                self.optimizer1.zero_grad()
                 loss.backward()
                 if self.client_clip==True:
-                    grad = torch.nn.utils.clip_grad_norm_(self.model.LHDR.parameters(), max_norm=100)
+                    backbone_params = list(self.model.F.parameters()) + list(self.model.LHDR.parameters())
+                    torch.nn.utils.clip_grad_norm_(backbone_params, max_norm=100)
                 self.optimizer2.step()
 
             for i, (x, y) in enumerate(self.testloader):
@@ -99,6 +102,7 @@ class clientGHDR(Client):
         # self.model.cpu()
             if self.learning_rate_decay:
                 self.learning_rate_scheduler2.step()
+            print(self.learning_rate_scheduler2.state_dict())
 
 
     def set_parameters(self, model):

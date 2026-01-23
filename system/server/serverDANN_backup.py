@@ -1,4 +1,5 @@
-from system.client.clientDANN import clientDANN
+from system.client.clientDANN_backup import clientDANN
+#---------------------------
 from system.server.serverbase import Server
 from utils.data_utils import read_client_data
 import torch
@@ -9,7 +10,7 @@ class serverDANN(Server):
         super().__init__(args)
         self.source_id=args.source_id
         self.target_id=args.target_id
-        self.set_clients(clientDANN)#是在原有的4个client基础上再设置了client吗？
+        self.set_clients(clientDANN)
         print("Finished creating server and clients.")
 
 

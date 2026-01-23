@@ -1,0 +1,42 @@
+{
+  "aim": {
+    "_type": "choice",
+    "_value": ["test"]
+  },
+  "algorithm": {
+    "_type": "choice",
+    "_value": ["FedDA"]
+  },
+  "F_FedAvg": {
+    "_type": "choice",
+    "_value": [true]
+  },
+  "EDI_FedAvg": {
+    "_type": "choice",
+    "_value": [true]
+  },
+  "local_epochs":{
+  "_type": "choice",
+  "_value": [1]
+  },
+  "batch_size_server": {
+    "_type": "choice",
+  "_value": [5]
+  },
+  "enable_cloud_da":{
+    "_type": "choice",
+    "_value": [true]
+  },
+  "fedeval": {
+    "_type": "choice",
+    "_value": ["false", "true"]
+  },
+    "new_da":{
+    "_type": "choice",
+    "_value": [false]
+  },
+      "enable_CADA":{
+    "_type": "choice",
+    "_value": [false]
+  }
+}

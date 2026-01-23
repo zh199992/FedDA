@@ -1,0 +1,22 @@
+{
+  "aim": {
+    "_type": "choice",
+    "_value": ["all"]
+  },
+  "algorithm": {
+    "_type": "choice",
+    "_value": ["GHDR", "FedAvg", "local", "FedRep"]
+  },
+  "F_FedAvg": {
+    "_type": "choice",
+    "_value": [true]
+  },
+  "EDI_FedAvg": {
+    "_type": "choice",
+    "_value": [true]
+  },
+  "P_FedAvg": {
+    "_type": "choice",
+    "_value": ["true", "false"]
+  }
+}

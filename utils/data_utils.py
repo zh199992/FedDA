@@ -7,7 +7,14 @@ from sklearn.manifold import TSNE
 import matplotlib.pyplot as plt
 from sklearn.utils import resample
 from utils.root import find_project_root
-
+from torch.utils.data import random_split
+import numpy as np
+import matplotlib.pyplot as plt
+from sklearn.decomposition import PCA
+from sklearn.manifold import TSNE
+from sklearn.metrics import silhouette_score
+import umap  # 可选，需 pip install umap-learn
+from sklearn.preprocessing import KBinsDiscretizer
 class MyDataset(Dataset):
     # 构造函数
     def __init__(self, data_tensor, target_tensor):
@@ -40,7 +47,27 @@ class MyDataset(Dataset):
 #         test_set = MyDataset(test_feature, test_label)
 #
 #         return test_set
-def read_client_data(dataset, idx, args,  is_train=True):  #调用read_data   输出元组列表
+# def read_client_data(dataset, idx, args,  is_train=True):  #调用read_data   输出元组列表
+#     current_directory = os.getcwd()
+#     root_dir = find_project_root('FedDA')
+#     if is_train:
+#         train_data_dir = os.path.join(root_dir, 'data', dataset, 'processed',args.dp)+'/'
+#
+#         train_feature = torch.load(train_data_dir + "train_FD00" +str(idx)+"feature"+ str(args.window_size)+'.pt')
+#         train_label = torch.load(train_data_dir + "train_FD00" +str(idx)+"label"+ str(args.window_size)+'.pt')
+#         train_set = MyDataset(train_feature, train_label)
+#
+#         return train_set
+#
+#     else:
+#         test_data_dir = os.path.join(root_dir, 'data', dataset, 'processed',args.dp)+'/'
+#         test_feature = torch.load(test_data_dir + "RUL_FD00" +str(idx)+str(args.window_size)+'.pt')
+#         test_label = torch.load(test_data_dir + "test_FD00" +str(idx)+ str(args.window_size)+'.pt')
+#         test_set = MyDataset(test_feature, test_label)
+#
+#         return test_set
+
+def read_client_data(dataset, idx, args,  is_train=True, train_ratio=1.0):  #调用read_data   输出元组列表
     current_directory = os.getcwd()
     root_dir = find_project_root('FedDA')
     if is_train:
@@ -48,9 +75,17 @@ def read_client_data(dataset, idx, args,  is_train=True):  #调用read_data   �
 
         train_feature = torch.load(train_data_dir + "train_FD00" +str(idx)+"feature"+ str(args.window_size)+'.pt')
         train_label = torch.load(train_data_dir + "train_FD00" +str(idx)+"label"+ str(args.window_size)+'.pt')
-        train_set = MyDataset(train_feature, train_label)
+        full_train_set = MyDataset(train_feature, train_label)
 
-        return train_set
+        if train_ratio < 1.0 and train_ratio > 0.0:
+            total_size = len(full_train_set)
+            subset_size = int(total_size * train_ratio)
+            remainder = total_size - subset_size
+            # 随机划分
+            subset, _ = random_split(full_train_set, [subset_size, remainder])
+            return subset
+        else:
+            return full_train_set
 
     else:
         test_data_dir = os.path.join(root_dir, 'data', dataset, 'processed',args.dp)+'/'
@@ -240,3 +275,137 @@ def str_to_bool(value):
     elif value.lower() in false_values:
         return False
 
+
+def visualize_features_with_rul(features, rul_labels, method='auto', n_components=2):
+    """仅降维，不绘图"""
+    if isinstance(features, torch.Tensor):
+        features = features.detach().cpu().numpy()
+    if isinstance(rul_labels, torch.Tensor):
+        rul_labels = rul_labels.detach().cpu().numpy()
+
+    features = features.astype(np.float32)
+    rul_labels = rul_labels.astype(np.float32)
+
+    if method == 'auto':
+        pca_temp = PCA(n_components=min(10, features.shape[1]))
+        pca_temp.fit(features)
+        cumsum_ratio = np.cumsum(pca_temp.explained_variance_ratio_)
+        if cumsum_ratio[-1] > 0.85:
+            method = 'pca'
+        else:
+            method = 'umap' if 'umap' in globals() else 'tsne'
+
+    if method == 'pca':
+        reducer = PCA(n_components=n_components)
+        embedding = reducer.fit_transform(features)
+    elif method == 'tsne':
+        reducer = TSNE(n_components=n_components, perplexity=30, random_state=42, n_iter=300)
+        embedding = reducer.fit_transform(features)  # 注意：TSNE 很慢，可考虑 subsample
+    elif method == 'umap':
+        reducer = umap.UMAP(n_components=n_components, random_state=42)
+        embedding = reducer.fit_transform(features)
+    else:
+        raise ValueError("method must be 'pca', 'tsne', 'umap', or 'auto'")
+
+    return embedding  # ← 只返回 embedding，不绘图！#ndarray
+
+
+def compute_rul_silhouette_score(features, rul_labels, n_bins=10):
+    """
+    计算基于 RUL 分箱的 Silhouette Score，用于衡量特征空间中 RUL 相似样本的聚集程度。
+
+    Args:
+        features: (N, D) array
+        rul_labels: (N,) array
+        n_bins: 将 RUL 分为多少个 bin（伪类别）
+
+    Returns:
+        float: Silhouette Score ∈ [-1, 1]，越高越好
+    """
+    if isinstance(features, torch.Tensor):
+        features = features.detach().cpu().numpy()
+    if isinstance(rul_labels, torch.Tensor):
+        rul_labels = rul_labels.detach().cpu().numpy()
+
+    # 离散化 RUL 为伪类别
+    discretizer = KBinsDiscretizer(n_bins=n_bins, encode='ordinal', strategy='quantile')
+    pseudo_labels = discretizer.fit_transform(rul_labels.reshape(-1, 1)).flatten().astype(int)
+
+    # 至少需要2个类别
+    if len(np.unique(pseudo_labels)) < 2:
+        return -1.0
+
+    try:
+        score = silhouette_score(features, pseudo_labels, metric='euclidean')
+        return float(score)
+    except:
+        return -1.0
+
+
+def plot_all_clients_features(uploaded_middle_features, uploaded_labels, titles=None, save_path="all_clients_features.png", figsize=(12, 10)):
+    n_clients = len(uploaded_middle_features)
+    assert n_clients <= 4, "最多支持4个客户端"
+    if titles is None:
+        titles = [f"Client {i + 1}" for i in range(n_clients)]
+
+    fig, axes = plt.subplots(2, 2, figsize=figsize)
+    axes = axes.flatten()
+
+    all_scores = []
+
+    for i in range(n_clients):
+        # 展平特征 (b, 30, 18) -> (b, 540)
+        features = uploaded_middle_features[i].flatten(start_dim=1)
+        rul_labels = uploaded_labels[i].detach().cpu().numpy()
+
+        # 计算聚类分数
+        score = compute_rul_silhouette_score(features, rul_labels, n_bins=10)
+        all_scores.append(score)
+        print(f"✅ Client {i+1} RUL-based Silhouette Score: {score:.4f}")
+
+        # 降维（不绘图）
+        embedding = visualize_features_with_rul(features, rul_labels, method='auto')  # 现在这个函数只降维！
+
+        # 在子图上绘制
+        ax = axes[i]
+        scatter = ax.scatter(embedding[:, 0], embedding[:, 1], c=rul_labels, cmap='viridis', s=15, alpha=0.7)
+        ax.set_title(f"{titles[i]} | RSS={score:.3f}", fontsize=10)
+        ax.set_xlabel('Dim 1')
+        ax.set_ylabel('Dim 2')
+        ax.grid(True, linestyle='--', alpha=0.3)
+
+        if i == 0:
+            cbar = plt.colorbar(scatter, ax=ax, shrink=0.8)
+            cbar.set_label('RUL')
+
+    # 隐藏多余子图
+    for j in range(n_clients, 4):
+        axes[j].set_visible(False)
+
+    plt.tight_layout()
+    plt.show()
+    # 确保目录存在
+    import os
+    os.makedirs(os.path.dirname(save_path) if os.path.dirname(save_path) else '.', exist_ok=True)
+    plt.savefig(save_path, dpi=150, bbox_inches='tight')
+    plt.close()
+    print(f"✅ 所有客户端特征图已保存至: {save_path}")#阻塞了 没到这一步
+    return all_scores
+
+def regresssion_feature(features_tensor, rul_tensor):
+    print("\n🎨 正在运行可视化函数...")
+    embedding = visualize_features_with_rul(
+        features_tensor,
+        rul_tensor,
+        method='auto',
+        title="Simulated C-MAPSS Features"
+    )
+
+    # 测试聚类指标
+    print("\n📈 正在计算 RUL 聚类质量指标...")
+    score = compute_rul_silhouette_score(features_tensor, rul_tensor, n_bins=10)
+    print(f"✅ RUL-based Silhouette Score: {score:.4f}")
+    print("   - 越接近 1 表示 RUL 相似样本越聚集")
+    print("   - 负值表示无聚类结构")
+
+    print("\n🎉 所有函数运行成功！")

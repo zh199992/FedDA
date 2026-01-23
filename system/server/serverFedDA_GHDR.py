@@ -4,7 +4,7 @@ import copy
 import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
-from utils.data_utils import CombinedDataset, MyDataset
+from utils.data_utils import CombinedDataset, MyDataset, visualize_features_with_rul, compute_rul_silhouette_score
 from utils.mmdloss import mmd_rbf
 import adamod
 import nni

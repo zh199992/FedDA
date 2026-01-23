@@ -2,10 +2,20 @@ import copy
 import torch
 import numpy as np
 from system.client.clientbase import Client
+from utils.metric import SF
 
-class clientAvg(Client):
+class clientCADA(Client):
     def __init__(self, args, id, train_samples, test_samples, **kwargs):
         super().__init__(args, id, train_samples, test_samples, **kwargs)
+        # self.optimizer_enc = torch.optim.Adam(list(self.model.F.parameters())+list(self.model.LHDR.parameters())+
+        #                                       list(self.model.predictor.parameters()), lr=self.learning_rate)
+        # self.optimizer_nce = torch.optim.Adam(self.InfoNCEHead.parameters(), lr=1e-2)
+        self.optimizer = torch.optim.Adam([
+            {'params': self.model.F.parameters(), 'lr': self.learning_rate},
+            {'params': self.model.LHDR.parameters(), 'lr': self.learning_rate},
+            {'params': self.model.predictor.parameters(), 'lr': self.learning_rate},
+            {'params': self.model.InfoNCEHead.parameters(), 'lr': 1e-2}
+        ])
 
     def train(self):
 
@@ -30,9 +40,13 @@ class clientAvg(Client):
             for i, (x, y) in enumerate(self.trainloader):
                 x = x.to(self.device)
                 y = y.to(self.device)
-                output, _, _ = self.model(x)
+                output, shallow, middle, infonce_loss = self.model(x)
                 loss = self.loss(output, y)
                 self.writer.add_scalar('train/steploss_client'+str(self.id),torch.sqrt(loss),global_step+i)
+                self.writer.add_scalar('train/stepinfonceloss_client'+str(self.id),torch.sqrt(infonce_loss),global_step+i)
+                if self.args.enable_CADA:
+                    print("enable_CADA")
+                    loss += self.args.info_lambda*infonce_loss
                 self.optimizer.zero_grad()
                 loss.backward()
                 if self.client_clip==True:
@@ -48,7 +62,7 @@ class clientAvg(Client):
             for i, (x, y) in enumerate(self.testloader):
                 x = x.to(self.device)
                 y = y.to(self.device)
-                output, _, _ = self.model(x)
+                output, _, _, _ = self.model(x)
                 loss = self.loss(output, y)
                 self.writer.add_scalar('test/client'+str(self.id),torch.sqrt(loss),global_step_test+i)
 
@@ -77,3 +91,43 @@ class clientAvg(Client):
         if self.args.P_FedAvg:
             for new_param, old_param in zip(model.unique.parameters(), self.model.unique.parameters()):#可以选择
                 old_param.data = self.miu_su * old_param.data + (1 - self.miu_su) * new_param.data
+
+    def get_feature(self):
+        self.shallow_feature=[]
+        self.middle_feature=[]
+        for i, (x, y) in enumerate(self.trainloader):
+            x = x.to(self.device)
+            y = y.to(self.device)
+            _, shallow, middle, _ = self.model(x)
+            self.shallow_feature.append(shallow.detach())
+            self.middle_feature.append(middle.detach())
+
+    def test_metrics(self):
+        # test_data = read_client_data(self.dataset, self.id, self.args, is_train=False)
+        # x,y=test_data.data_tensor,test_data.target_tensor
+        # test_num=len(test_data)
+        x_list = []
+        y_list = []
+
+        for x_batch, y_batch in self.testloader:
+            x_list.append(x_batch)
+            y_list.append(y_batch)
+
+        # 将所有批次的数据拼接成一个张量
+        x = torch.cat(x_list, dim=0)
+        y = torch.cat(y_list, dim=0)
+        test_num=x.size(0)
+
+        # self.model = self.load_model('model')
+        # self.model.to(self.device)
+        self.model.eval()
+
+
+        with torch.no_grad():
+            x = x.to(self.device)
+            y = y.to(self.device)
+            output, shallow, middle, _ = self.model(x)
+            loss= self.loss(output, y)
+            score = SF(y, output)
+
+        return loss, test_num,score

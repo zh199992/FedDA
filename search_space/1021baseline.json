@@ -1,0 +1,24 @@
+{
+  "aim": {
+    "_type": "choice",
+    "_value": [
+      "individual"
+    ]
+  },
+  "source_id": {
+    "_type": "choice",
+    "_value": [
+      1,      2,      3,      4    ]
+  },
+  "target_id": {
+    "_type": "choice",
+    "_value": [
+      1,      2,      3,      4    ]
+  },
+  "mode": {
+    "_type": "choice",
+    "_value": [
+      "baseline"
+    ]
+  }
+}

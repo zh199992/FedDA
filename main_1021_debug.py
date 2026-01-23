@@ -1,5 +1,3 @@
-import nni
-
 import argparse
 import os
 # os.environ["CUDA_VISIBLE_DEVICES"] = "2"
@@ -17,6 +15,8 @@ import yaml
 from datetime import datetime
 from utils.data_utils import str_to_bool
 from utils.root import find_project_root
+import nni
+
 
 from system.server.serverCentralized2 import serverCentralized
 from system.server.serverFedAvg import serverAvg
@@ -48,7 +48,6 @@ def run(args):
 
     if args.algorithm == "GHDR":
         if model_str == "cnn1D":
-            args.model = model.GHDR_FL(data_dim).to(args.device)
             if args.EDS:
                 args.model = model.GHDR_FL_testeds(data_dim).to(args.device)
             else:
@@ -56,6 +55,16 @@ def run(args):
         else:
             raise NotImplementedError
         server = serverGHDR(args)  # server初始化用的args包含了新的model
+    elif args.algorithm == "all":
+        if model_str == "cnn1D":
+            if args.EDS:
+                args.model = model.GHDR_FL_testeds(data_dim).to(args.device)
+            else:
+                args.model = model.GHDR_FL(data_dim).to(args.device)
+        else:
+            raise NotImplementedError
+        server = serverGHDR(args)
+
     elif args.algorithm == "local":
         if model_str == "cnn1D":
             if args.EDS:
@@ -67,10 +76,21 @@ def run(args):
         server = serverLocal(args)
     elif args.algorithm == "DANN":
         if model_str == "cnn1D":
-            if args.EDS:
-                args.model = model.GHDR_FL_testeds(data_dim).to(args.device)
-            else:
-                args.model = model.GHDR_FL(data_dim).to(args.device)
+            # args.mode = "baseline"
+            # # args.mode = "dann"
+            # args.source_id = 1
+            # args.target_id = 2
+            if args.source_id == args.target_id:
+                raise ValueError("source_id and target_id cannot be the same")
+            # if args.EDS:
+            #     args.model = model.GHDR_FL_testeds(data_dim).to(args.device)
+            # else:
+            #     args.model = model.GHDR_FL(data_dim).to(args.device) -------------------------------
+            args.model = model.conv_DANN(data_dim,args.conv_init,args.gru_init, args.linear_init).to(args.device)
+            if args.mode == "dann":
+                args.aim = args.mode+f"{args.source_id} to {args.target_id} gamma={args.gamma}"
+            elif args.mode == "baseline":
+                args.aim = args.mode+f"{args.source_id} to {args.target_id}"
         else:
             raise NotImplementedError
         server = serverDANN(args)
@@ -137,10 +157,19 @@ def run(args):
 
     print(args.model)
     print(args.TIMESTAMP)
+    print('modified')
     root_dir = find_project_root('FedDA')
     # directory = '/home/zhouheng/project/FedDA/logs/test1/config/'#比画图多一个/config/
     # directory = 'test2/config/'#比画图多一个/config/
-    config_path = os.path.join(root_dir, "logs", args.directory, 'config', args.algorithm ,args.aim,args.TIMESTAMP+'.json')
+    # exp_id = nni.get_experiment_id()
+    # trial_id = nni.get_trial_id()
+    config_path = os.path.join(root_dir, "logs", args.directory, 'config', args.algorithm ,args.aim, args.TIMESTAMP+'.json')
+    graph_path = os.path.join(root_dir, "logs", args.directory, 'graph', args.algorithm, args.aim, args.TIMESTAMP)
+    index_dir = os.path.join(root_dir, "logs", ".experiment_index")
+    os.makedirs(index_dir, exist_ok=True)
+
+    # 写入索引：用 experiment_id 作为文件名，内容包含 graph 和 config 路径
+#-----------------------------------------------------------------
     print(config_path)
     os.makedirs(os.path.dirname(config_path), exist_ok=True)
     # yaml_path=os.path.join(directory,  args.algorithm ,args.aim+'.yaml')
@@ -152,12 +181,7 @@ def run(args):
     server.train()
     # 假设你有验证精度或损失指标
     # 例如 server.best_val_acc 或 server.best_val_loss
-    nni.report_final_result(server.test_avg_loss)  # 或者 nni.report_final_result(1 - val_loss)
-    # nni.report_final_result({
-    #     'test_avg_loss': server.test_avg_loss,
-    #     'val_loss': server.best_val_loss,
-    #     'test_acc': server.test_acc
-    # })
+
 
 
 if __name__ == '__main__':
@@ -167,15 +191,15 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     # general  添加参数
     parser.add_argument("-random_seed", "--random_seed", type=int, default=42)
-    parser.add_argument('-d', "--directory", type=str, default="0821")
+    parser.add_argument('-d', "--directory", type=str, default="1021")
     parser.add_argument('-aim', "--aim", type=str, default="debug")#训练目的
     parser.add_argument('-data', "--dataset", type=str, default="CMAPSSData")
     parser.add_argument('-m', "--model_name", type=str, default="cnn1D",choices=["cnn1D","lstm","FedRUL"])
     # parser.add_argument('-cloudm', "--model_name", type=str, default="cnn1D",choices=["cnn1D","lstm","FedRUL"])
     parser.add_argument('-dp', "--dp", type=str, default="18-[0,1]",
                         choices=["14-[-1,1]", "18-[0,1]", "14-[0,1]", "18-[-1,1]"], help="dataprocessing")
-    parser.add_argument('-algo', "--algorithm", type=str, default="FedDA",##这个参数不传入server
-                        choices=["centralized", "local", "localiid", "FedAvg", "FedAvgiid", "GHDR","FedDA","ablation1","ablation2", "finetune", "dann"])
+    parser.add_argument('-algo', "--algorithm", type=str, default="FedAvg",##这个参数不传入server
+                        choices=["centralized", "local", "localiid", "FedAvg", "FedAvgiid", "GHDR","FedDA","ablation1","ablation2", "finetune", "DANN", "all"])
     parser.add_argument('-o_c', "--optimizer_client", type=str, default="adam", choices=["adam", "adamod", "sgd"])
     parser.add_argument('-o_s', "--optimizer_server", type=str, default="adam", choices=["adam", "adamod", "sgd"])
     parser.add_argument('-bs_c', "--batch_size_client", type=int, default=1024)
@@ -191,7 +215,7 @@ if __name__ == '__main__':
     parser.add_argument('-pretrain_early_stop', "--pretrain_early_stop", type=bool, default=True)
     # parser.add_argument('-le', "--local_epochs", type=str, default='50,5',
     #                     help="Multiple update steps in one local epoch.")
-    parser.add_argument('-le', "--local_epochs", type=int, default=0,
+    parser.add_argument('-le', "--local_epochs", type=int, default=100,
                         help="Multiple update steps in one local epoch.")
     parser.add_argument('-se', "--server_epochs", type=int, default=10)
     # parser.add_argument('-clr', "--local_learning_rate", type=str, default='0.001,0.001')
@@ -225,12 +249,15 @@ if __name__ == '__main__':
     parser.add_argument('-lambda_mmd', "--lambda_mmd", type=float, default=0.05)
     parser.add_argument('-gamma', "--gamma", type=float, default=0.05)
 
-    args = parser.parse_args()
+
 #---------------------------------------------------------------------
-    tuned_params = nni.get_next_parameter()
-    for key, value in tuned_params.items():
-        setattr(args, key, value)
+    # ---------------------------------------------------------------------
+    parser.add_argument('-source_id', "--source_id", type=int, default=1)
+    parser.add_argument('-target_id', "--target_id", type=int, default=2)
+    parser.add_argument('--mode', "--mode", type=str, default='dann')
+    # ---------------------------------------------------------------------
 # ---------------------------------------------------------------------
+    args = parser.parse_args()
     seed_torch(args.random_seed)
     print("=" * 50) #确认config
 
@@ -239,7 +266,7 @@ if __name__ == '__main__':
     print("=" * 50) #确认config
 
     print("CUDA_VISIBLE_DEVICES:", os.environ.get("CUDA_VISIBLE_DEVICES"))
-    args.device = torch.device("cuda")
+    args.device = torch.device("cuda:1")
 
     print("=" * 50)
     print("random_seed: {}".format(args.random_seed))

@@ -14,8 +14,9 @@ class clientDA(Client):
         #     gamma=args.learning_rate_decay_gamma
         # )
 
-
     def train(self):
+
+        # self.model.to(self.device)
         ####模式
         self.model.train()
 
@@ -30,30 +31,36 @@ class clientDA(Client):
             global_step = (self.global_round * (max_local_epochs) + epoch) * len(self.trainloader)
             global_step_test = (self.global_round * (max_local_epochs) + epoch)
 
+            total_train_loss = 0.0
+            total_train_samples = 0
+
             for i, (x, y) in enumerate(self.trainloader):
                 x = x.to(self.device)
                 y = y.to(self.device)
                 output, _, _ = self.model(x)
                 loss = self.loss(output, y)
-                self.writer.add_scalar('train/client'+str(self.id),torch.sqrt(loss),global_step+i)
+                self.writer.add_scalar('train/steploss_client' + str(self.id), torch.sqrt(loss), global_step + i)
                 self.optimizer.zero_grad()
                 loss.backward()
-                if self.client_clip==True:
+                if self.client_clip == True:
                     grad = torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=100)
                 self.optimizer.step()
+
+                total_train_loss += loss * len(x)
+                total_train_samples += len(x)
+
+            avg_train_loss = total_train_loss / total_train_samples
+            self.writer.add_scalar('train/epochloss_client' + str(self.id), torch.sqrt(avg_train_loss), global_step + i)
 
             for i, (x, y) in enumerate(self.testloader):
                 x = x.to(self.device)
                 y = y.to(self.device)
-                output,_ ,_ = self.model(x)
+                output, _, _ = self.model(x)
                 loss = self.loss(output, y)
-                self.writer.add_scalar('test/client'+str(self.id),torch.sqrt(loss),global_step_test+i)
-
-        # self.model.cpu()
+                self.writer.add_scalar('test/client' + str(self.id), torch.sqrt(loss), global_step_test + i)
 
             if self.learning_rate_decay:
                 self.learning_rate_scheduler.step()
-
         #
     def set_parameters(self, model):
         if self.args.F_FedAvg:

@@ -10,6 +10,9 @@ import torch.utils.tensorboard as tb
 
 import nni
 from utils.root import find_project_root
+import numpy as np
+import torch
+import matplotlib.pyplot as plt
 
 class Server(object):
     def __init__(self, args):
@@ -43,7 +46,7 @@ class Server(object):
         root_dir = find_project_root('FedDA')
         #第一种路径  先分config和graph，再接试验任务。 第二种路径，先按任务分类，再config和graph
         # directory = 'test2/config/'  # 比画图多一个/config/
-        self.graph_path = os.path.join(root_dir, "logs", args.directory, 'graph', args.algorithm, args.aim, args.TIMESTAMP)
+        self.graph_path = os.path.join(root_dir, "logs", args.directory, 'graph', args.algorithm, args.aim, nni.get_experiment_id(), nni.get_trial_id()+'-'+args.TIMESTAMP)
         # self.graph_path=root_dir+'/logs/0730/graph/' + self.algorithm + '/'+args.aim+'/'+args.TIMESTAMP
         self.writer = tb.SummaryWriter(self.graph_path)  # tensorboard文件存储的文件夹
 
@@ -51,6 +54,13 @@ class Server(object):
         self.rs_test_rmse=[]
         self.best_rmse=999
         self.client_best_loss=[999,999,999,999]
+        # ---------------------- Early Stopping Variables ----------------------
+        self.early_stop = getattr(args, 'early_stop', False)         # 是否启用早停
+        self.pretrain_early_stop = getattr(args, 'pretrain_early_stop', False)
+        self.patience = 5              # 容忍多少轮不提升
+        self.counter = 0                                             # 计数器
+        self.early_stop_flag = False                                 # 是否触发早停
+        # ----------------------------------------------------------------------
     def set_clients(self, clientObj):#设置了就有n个client作为server的属性
         for i in range(1,1+self.num_clients):
             train_set = read_client_data(self.dataset, i,self.args, is_train=True)
@@ -89,7 +99,8 @@ class Server(object):
             self.uploaded_weights.append(client.train_samples)
             self.uploaded_models.append(client.model)
 
-            uploaded_middle=torch.cat(client.middle_feature,dim=0)
+            # uploaded_middle=torch.cat(client.middle_feature,dim=0)
+            uploaded_middle = torch.cat([f.detach() for f in client.middle_feature], dim=0)
             self.uploaded_middle_features.append(uploaded_middle)
 
         for i, w in enumerate(self.uploaded_weights):
@@ -115,7 +126,8 @@ class Server(object):
         # print("Averaged Train Loss: {:.4f}".format(train_loss))
         print("best avg test loss: {:.4f}".format(best_avg_test_loss))
         self.writer.add_scalar("test/average loss", best_avg_test_loss, round)
-        nni.report_intermediate_result({"test/average loss": torch.sqrt(stats[0][0]).item()})
+        nni.report_intermediate_result({"test/average loss": best_avg_test_loss.item()})
+        # nni.report_intermediate_result({"test/average loss": torch.sqrt(stats[0][0]).item()})
         # if self.test_avg_loss>torch.sqrt(total_test_loss).item():
         self.test_avg_loss=best_avg_test_loss.item()
         self.rs_test_rmse.append(self.test_avg_loss)
@@ -163,3 +175,67 @@ class Server(object):
     def add_parameters(self, w, client_model):
         for server_param, client_param in zip(self.global_model.parameters(), client_model.parameters()):
             server_param.data += client_param.data.clone() * w
+
+
+
+    def RUL_CE(self, n_bins=20, max_rul=125, normalize=True, plot_hist=True):
+        rul_ce = []
+        all_labels_list = []  # 用于绘图
+
+        for c in self.clients:
+            all_labels = []
+            for _, labels in c.trainloader:
+                if isinstance(labels, torch.Tensor):
+                    labels = labels.cpu().numpy()
+                all_labels.append(labels)
+
+            if not all_labels:
+                raise ValueError("Dataloader is empty.")
+
+            labels = np.concatenate(all_labels)
+            labels = np.clip(labels, 0, max_rul)
+            all_labels_list.append(labels)  # 保存用于绘图
+
+            # 分箱
+            bin_edges = np.linspace(0, max_rul, n_bins + 1)
+            counts, _ = np.histogram(labels, bins=bin_edges)
+
+            total = counts.sum()
+            if total == 0:
+                entropy_val = 0.0
+            else:
+                probs = counts / total
+                nonzero_probs = probs[probs > 0]
+                entropy = -np.sum(nonzero_probs * np.log(nonzero_probs))
+                if normalize:
+                    max_entropy = np.log(n_bins)
+                    entropy_val = entropy / max_entropy if max_entropy > 0 else 0.0
+                else:
+                    entropy_val = entropy
+            rul_ce.append(entropy_val)
+
+        print("RUL 分布归一化熵（均匀度）:", rul_ce)
+
+        # ===== 新增：绘制直方图 =====
+        if plot_hist and len(self.clients) <= 9:  # 支持最多9个客户端的网格
+            n_clients = len(self.clients)
+            cols = 2 if n_clients <= 4 else 3
+            rows = (n_clients + cols - 1) // cols
+
+            plt.figure(figsize=(5 * cols, 4 * rows))
+            bin_edges = np.linspace(0, max_rul, n_bins + 1)
+            bin_centers = (bin_edges[:-1] + bin_edges[1:]) / 2
+
+            for i, labels in enumerate(all_labels_list):
+                plt.subplot(rows, cols, i + 1)
+                plt.hist(labels, bins=bin_edges, color='skyblue', edgecolor='black', alpha=0.7)
+                plt.title(f'Client {i + 1} | Uniformity = {rul_ce[i]:.3f}', fontsize=12)
+                plt.xlabel('RUL')
+                plt.ylabel('Frequency')
+                plt.xlim(0, max_rul)
+                plt.grid(axis='y', linestyle='--', alpha=0.6)
+
+            plt.tight_layout()
+            plt.show()
+
+        return rul_ce

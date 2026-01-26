@@ -18,6 +18,26 @@ import matplotlib.pyplot as plt
 from utils.data_utils import visualize_features_with_rul, compute_rul_silhouette_score
 
 if __name__ == "__main__":
+    import subprocess
+
+##test git func
+    def get_git_revision():
+        try:
+            # 获取当前 commit 的完整 hash
+            return subprocess.check_output(
+                ['git', 'rev-parse', 'HEAD'],
+                cwd='.',  # 可指定项目根目录
+                stderr=subprocess.STDOUT,
+                universal_newlines=True
+            ).strip()
+        except subprocess.CalledProcessError:
+            return "unknown"  # 不在 Git 仓库中或 Git 未安装
+
+
+    # 使用示例
+    version = get_git_revision()
+    print(f"当前 Git 版本: {version}")
+
     feature = torch.rand([1024,30,18]).to('cuda')
     label = torch.randint(0,125,[1024,1]).to('cuda')
     fig, axes = plt.subplots(2, 2, figsize=(12, 10))

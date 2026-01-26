@@ -2,3 +2,4 @@
 # 1.data_utils.py
 - visualize函数，实现t-SNE降维+可视化
 ![我的selfie](images/wow.jpg)
+> 为什么图片描述被吞了？

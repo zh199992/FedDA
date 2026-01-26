@@ -1,0 +1,19 @@
+# 格式：类型: 标题
+
+feat: 添加新功能（如新模型、新损失函数）
+fix: 修复 bug（如训练崩溃、精度异常）
+exp: 实验相关修改（如超参调整、数据预处理）
+refactor: 代码重构（不改变功能）
+docs: 更新文档或注释
+chore: 依赖更新、配置修改等
+
+# 正文（可选）：
+- 描述改动原因和影响
+- 关联 issue 或实验编号（如 #Exp20260126）
+
+# 示例：
+feat: add temperature scaling in CADA loss
+
+- introduce tau parameter to control logits sharpness
+- improve performance on DomainB by 2.1%
+- ref: Exp20260126

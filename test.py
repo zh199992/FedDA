@@ -21,6 +21,7 @@ if __name__ == "__main__":
     import subprocess
 
 ##test git func
+##test git+pycharm
     def get_git_revision():
         try:
             # 获取当前 commit 的完整 hash

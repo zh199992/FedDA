@@ -865,7 +865,7 @@ class Cloud_FedCADA_newda(nn.Module):
         return self.discriminator_list[domain_ids](discriminator_input), feature[:,-1,:]
 
 class CADA(nn.Module):
-    def __init__(self, input_dim=14, hidden_dim=32, num_layers=3, seq_len=30, lambda_nce=0.1):
+    def __init__(self, input_dim=14, hidden_dim=32, num_layers=5, seq_len=30, lambda_nce=0.1):
         super().__init__()
         self.input_dim = input_dim
         self.hidden_dim = hidden_dim

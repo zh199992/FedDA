@@ -20,7 +20,7 @@
   "mode": {
     "_type": "choice",
     "_value": [
-      "CADA"
+      "wo-InfoNCE"
     ]
   },
   "lambda_nce": {

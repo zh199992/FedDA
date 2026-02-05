@@ -5,6 +5,12 @@
       "CADA"
     ]
   },
+  "git_version": {
+    "_type": "choice",
+    "_value": [
+      "20260205v2"
+    ]
+  },
   "source_id": {
     "_type": "choice",
     "_value": [
@@ -20,7 +26,7 @@
   "mode": {
     "_type": "choice",
     "_value": [
-      "wo-InfoNCE"
+      "Source-Only"
     ]
   },
   "lambda_nce": {

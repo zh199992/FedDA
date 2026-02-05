@@ -298,7 +298,7 @@ if __name__ == '__main__':
     # 创建ArgumentParser对象
     parser = argparse.ArgumentParser()
     # general  添加参数
-    parser.add_argument("-git_version", "--git_version", type=str, required=True)
+    parser.add_argument("-git_version", "--git_version", type=str)
     parser.add_argument("-random_seed", "--random_seed", type=int, default=42)
     parser.add_argument('-d', "--directory", type=str, default="1120")#1021
     parser.add_argument('-aim', "--aim", type=str, default="debug")#训练目的

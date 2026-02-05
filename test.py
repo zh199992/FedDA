@@ -16,9 +16,31 @@ print( torch.tensor([5.0,1.0,2.0,3.0]).norm(2))
 import numpy as np
 import matplotlib.pyplot as plt
 from utils.data_utils import visualize_features_with_rul, compute_rul_silhouette_score
-
+from models import model
 if __name__ == "__main__":
-    import subprocess
+    data1 = torch.randint(1,5,[2,2,3]).to('cuda').float()
+    data2 = torch.randint(1,5,[3]).to('cuda').float()
+    output = torch.einsum('bct, t->bc', data1, data2)
+    print(output)
+    data1 = torch.rand([128, 30, 18]).to('cuda')
+    deepCNN = model.deepCNN(1).to('cuda')
+    x = deepCNN(data1)
+    print(x)
+
+    data2 = data1.permute(0, 2, 1).to('cuda')
+    model1 = model.GHDR_FL(18).to('cuda')
+    model2 = model.GHDR_test(18).to('cuda')
+    model1.eval()
+    model2.eval()
+    model2.F = copy.deepcopy(model1.F)
+    model2.LHDR = copy.deepcopy(model1.LHDR)
+    model2.GRU = copy.deepcopy(model1.unique[0])
+    model2.unique = nn.Sequential(*copy.deepcopy(list(model1.unique[3:5])+list(model1.unique[6:8])+[model1.unique[9]]))
+    middle1 = model1(data1)[0]
+    print(middle1.shape)
+    middle2 = model2(data1)[0]
+    print(middle2.shape)
+    print(middle1 == middle2)
 
 ##test git func
 ##test git+pycharm

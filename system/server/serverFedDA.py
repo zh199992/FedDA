@@ -177,7 +177,7 @@ class serverDA(Server):
     def cloud_da1(self,global_round):
         #1.得到标签 2.dataloader 3.训练 4.输出/画出结果
         for epoch in range(self.epoches):
-            global_step = (global_round * (self.epoches) + epoch) * len(self.combined_loader)#1.4e6/1024=1.4e3个batch -se=10的话，云端有1.4e4个step 143533/1024=141
+            global_step = (global_round * self.epoches + epoch) * len(self.combined_loader)#1.4e6/1024=1.4e3个batch -se=10的话，云端有1.4e4个step 143533/1024=141
             for i, (batch_data, batch_domains) in enumerate(self.combined_loader):
                 self.optimizer.zero_grad()
                 batch_data = batch_data.to(self.device)

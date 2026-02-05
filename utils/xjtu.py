@@ -190,8 +190,8 @@ class dataSet(object):
                 # add sample to data set
                 for i in range(startMinute, endMinutes + 1):
 
-                    print("@ SCANNING CSV ", conditionVal, subSampleVal, "%d.csv" % (i))
-                    sampleCSVPath = os.path.join(bearingSampleFolderPath, "%d.csv" % (i))
+                    print("@ SCANNING CSV ", conditionVal, subSampleVal, "%d.csv" % i)
+                    sampleCSVPath = os.path.join(bearingSampleFolderPath, "%d.csv" % i)
                     np_data = self.read_signal_file_to_array_by_path(sampleCSVPath)
 
                     if isTrain:
@@ -274,7 +274,7 @@ if __name__ == "__main__":
     idList = [0,50,75,100,150]
     for idx,sampleIdx in enumerate(idList):
         plt.subplot("%d%d%d"%(len(idList),1,idx+1))
-        plt.plot(train_data[sampleIdx,:,0],label="Horizon_%d"%(sampleIdx))
+        plt.plot(train_data[sampleIdx,:,0], label="Horizon_%d" % sampleIdx)
         plt.xlabel("Time")
         plt.ylabel("Signal")
         plt.legend()

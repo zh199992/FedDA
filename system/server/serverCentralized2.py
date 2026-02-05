@@ -47,7 +47,7 @@ class serverCentralized(Server):
                     self.writer.add_scalar('train/server_cent', torch.sqrt(loss), global_step + k)
                     self.optimizer.zero_grad()
                     loss.backward()
-                    if self.clip == True:
+                    if self.clip:
                         grad = torch.nn.utils.clip_grad_norm_(self.global_model.parameters(), max_norm=100)
                     self.optimizer.step()
 

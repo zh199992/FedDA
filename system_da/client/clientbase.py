@@ -6,13 +6,15 @@ import os
 from torch.utils.data import DataLoader, Dataset
 from utils.data_utils import read_client_data
 from utils.metric import SF
-#train是在client类里重写 其他方法在clientbase类里
+
+
+# train是在client类里重写 其他方法在clientbase类里
 class Client(object):
     """
     Base class for clients in federated learning.
     """
 
-    def __init__(self, args, id, train_samples, test_samples, writer,**kwargs):
+    def __init__(self, args, id, train_samples, test_samples, writer, **kwargs):
         # torch.manual_seed(0)
         self.args = args
         self.model = copy.deepcopy(args.model)
@@ -21,16 +23,16 @@ class Client(object):
         self.device = args.device
         self.id = id  # integer
 
-        self.train_samples = train_samples#用来干什么？计算RMSE吗？
+        self.train_samples = train_samples  # 用来干什么？计算RMSE吗？
         self.test_samples = test_samples
         self.batch_size = args.batch_size_client
         self.learning_rate = float(args.local_learning_rate.split(',')[0])
         self.local_epochs = int(args.local_epochs.split(',')[0])
-        self.client_schedule=args.client_schedule
-        self.client_clip=args.client_clip
+        self.client_schedule = args.client_schedule
+        self.client_clip = args.client_clip
 
         self.loss = nn.MSELoss()
-        self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.learning_rate)#如果是别的方案就不能提前设置
+        self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.learning_rate)  # 如果是别的方案就不能提前设置
         # self.optimizer = torch.optim.SGD(self.model.parameters(), lr=self.learning_rate)#如果是别的方案就不能提前设置
         self.learning_rate_scheduler = torch.optim.lr_scheduler.ExponentialLR(
             optimizer=self.optimizer,
@@ -38,13 +40,13 @@ class Client(object):
         )
         self.learning_rate_decay = args.learning_rate_decay
         self.writer = writer
-        self.global_round=None
+        self.global_round = None
         self.trainloader = self.load_train_data()
         self.testloader = self.load_test_data()
 
     def get_feature(self):
-        self.shallow_feature=[]
-        self.middle_feature=[]
+        self.shallow_feature = []
+        self.middle_feature = []
         for i, (x, y) in enumerate(self.trainloader):
             x = x.to(self.device)
             y = y.to(self.device)
@@ -82,23 +84,22 @@ class Client(object):
         # 将所有批次的数据拼接成一个张量
         x = torch.cat(x_list, dim=0)
         y = torch.cat(y_list, dim=0)
-        test_num=x.size(0)
+        test_num = x.size(0)
 
         # self.model = self.load_model('model')
         # self.model.to(self.device)
         self.model.eval()
 
-
         with torch.no_grad():
             x = x.to(self.device)
             y = y.to(self.device)
             output, shallow, middle = self.model(x)
-            loss= self.loss(output, y)
+            loss = self.loss(output, y)
             score = SF(y, output)
 
-        return loss, test_num,score
+        return loss, test_num, score
 
-    def train_metrics(self):#为什么需要这个
+    def train_metrics(self):  # 为什么需要这个
         trainloader = self.load_train_data()
         # self.model = self.load_model('model')
         # self.model.to(self.device)
@@ -113,7 +114,7 @@ class Client(object):
                 else:
                     x = x.to(self.device)
                 y = y.to(self.device)
-                output, _, _= self.model(x)
+                output, _, _ = self.model(x)
                 loss = self.loss(output, y)
                 train_num += y.shape[0]
                 losses += loss.item() * y.shape[0]

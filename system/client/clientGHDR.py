@@ -56,7 +56,7 @@ class clientGHDR(Client):
                 self.writer.add_scalar('train/client'+str(self.id),torch.sqrt(loss),global_step+i)
                 self.optimizer1.zero_grad()
                 loss.backward()
-                if self.client_clip==True:
+                if self.client_clip:
                     grad = torch.nn.utils.clip_grad_norm_(self.model.unique.parameters(), max_norm=100)
                 self.optimizer1.step()
             if self.learning_rate_decay:
@@ -87,7 +87,7 @@ class clientGHDR(Client):
                 self.optimizer2.zero_grad()
                 self.optimizer1.zero_grad()
                 loss.backward()
-                if self.client_clip==True:
+                if self.client_clip:
                     backbone_params = list(self.model.F.parameters()) + list(self.model.LHDR.parameters())
                     torch.nn.utils.clip_grad_norm_(backbone_params, max_norm=100)
                 self.optimizer2.step()

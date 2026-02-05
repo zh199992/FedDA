@@ -28,8 +28,8 @@ class clientDA(Client):
 
         for epoch in range(max_local_epochs):
             print(f"global round {self.global_round} client{self.id}  local epoch: {epoch} ")
-            global_step = (self.global_round * (max_local_epochs) + epoch) * len(self.trainloader)
-            global_step_test = (self.global_round * (max_local_epochs) + epoch)
+            global_step = (self.global_round * max_local_epochs + epoch) * len(self.trainloader)
+            global_step_test = (self.global_round * max_local_epochs + epoch)
 
             total_train_loss = 0.0
             total_train_samples = 0
@@ -42,7 +42,7 @@ class clientDA(Client):
                 self.writer.add_scalar('train/steploss_client' + str(self.id), torch.sqrt(loss), global_step + i)
                 self.optimizer.zero_grad()
                 loss.backward()
-                if self.client_clip == True:
+                if self.client_clip:
                     grad = torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=100)
                 self.optimizer.step()
 

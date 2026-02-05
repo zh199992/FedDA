@@ -26,11 +26,13 @@ from system.server.serverlocal import serverLocal
 from system.server.serverGHDR import serverGHDR
 from system.server.serverFedDA import serverDA
 from system.server.serverFedCADA import serverFedCADA
+from system.server.serverFedDA_GHDR import serverDA_GHDR
 from system.server.servernewFedCADA import servernewFedCADA
 from system.server.serverFedAvgiid import serverAvgiid
 from system.server.serverlocaliid import serverLocaliid
 from system.server.serverFinetune import serverFinetune
 from system.server.serverDANN import serverDANN
+from system.server.serverCADA import serverCADA
 from models import model
 from utils.seed_torch import seed_torch
 from utils.gpu_select import get_least_loaded_gpu_id
@@ -51,8 +53,6 @@ def monitor_gpu_memory(interval=0.5, log_file="gpu_memory.log"):
         time.sleep(interval)
 
 
-
-
 def run(args):
     model_str = args.model_name
     data_dim = int(args.dp.split('-')[0])
@@ -68,11 +68,8 @@ def run(args):
     else:
         raise NotImplementedError
 
-    # if args.F_FedAvg == True or args.F_FedAvg == True or args.EDI_FedAvg == True:
-
 
     if args.algorithm == "GHDR":
-
         if model_str == "cnn1D":
             args.model = model.GHDR_FL(data_dim).to(args.device)
             if args.EDS:
@@ -93,6 +90,11 @@ def run(args):
         else:
             raise NotImplementedError
         server = serverLocal(args)
+    elif args.algorithm == "CADA":
+        args.model = model.CADA(lambda_nce=args.lambda_nce).to(args.device)
+        if args.mode == "CADA" or args.mode == "wo-InfoNCE" or args.mode == "Source-Only":
+            args.aim = args.mode+f"{args.source_id}to{args.target_id}gamma={args.lambda_nce}"
+        server = serverCADA(args)
     elif args.algorithm == "DANN":
         if model_str == "cnn1D":
             # args.mode = "baseline"
@@ -113,6 +115,8 @@ def run(args):
                 args.aim = args.mode+f"{args.source_id} + {args.target_id} gamma={args.gamma}"
             elif args.mode == "centralized":
                 args.aim = args.mode+f"target{args.target_id} gamma={args.gamma}"
+            elif args.mode == "CADA":
+                args.aim = args.mode + f"target{args.target_id} gamma={args.gamma}"
             if args.source_id == args.target_id and args.mode != "centralized":
                 raise ValueError("source_id and target_id cannot be the same")
         else:
@@ -168,6 +172,16 @@ def run(args):
         else:
             args.server_model = model.Cloud_FedCADA(args.num_clients).to(args.device)
             server = serverFedCADA(args)
+    elif args.algorithm == "FedDA_GHDR":
+        if model_str == "cnn1D":
+            if args.EDS:
+                args.model = model.GHDR_FL_testeds(data_dim).to(args.device)
+            else:
+                args.model = model.GHDR_FL(data_dim).to(args.device)
+        else:
+            raise NotImplementedError
+        args.server_model=model.Cloud_GHDR(data_dim,args.window_size, args.num_clients).to(args.device)
+        server = serverDA_GHDR(args)
     elif args.algorithm == "FedAvgiid":
         if model_str == "cnn1D":
             if args.EDS:
@@ -284,6 +298,7 @@ if __name__ == '__main__':
     # 创建ArgumentParser对象
     parser = argparse.ArgumentParser()
     # general  添加参数
+    parser.add_argument("-git_version", "--git_version", type=str, required=True)
     parser.add_argument("-random_seed", "--random_seed", type=int, default=42)
     parser.add_argument('-d', "--directory", type=str, default="1120")#1021
     parser.add_argument('-aim', "--aim", type=str, default="debug")#训练目的
@@ -293,7 +308,7 @@ if __name__ == '__main__':
     parser.add_argument('-dp', "--dp", type=str, default="14-[0,1]",
                         choices=["14-[-1,1]", "18-[0,1]", "14-[0,1]", "18-[-1,1]"], help="dataprocessing")
     parser.add_argument('-train_ratio', "--train_ratio", type=float, default=1.0)
-    parser.add_argument('-algo', "--algorithm", type=str, default="DANN",##这个参数不传入server
+    parser.add_argument('-algo', "--algorithm", type=str, default="CADA",##这个参数不传入server
                         choices=["centralized", "local", "localiid", "FedAvg", "FedPer","FedAvgiid", "GHDR","FedDA","ablation1","ablation2", "finetune", "DANN"])
     parser.add_argument('-o_c', "--optimizer_client", type=str, default="adam", choices=["adam", "adamod", "sgd"])
     parser.add_argument('-o_s', "--optimizer_server", type=str, default="adam", choices=["adam", "adamod", "sgd"])
@@ -312,7 +327,7 @@ if __name__ == '__main__':
     #                     help="Multiple update steps in one local epoch.")
     parser.add_argument('-le', "--local_epochs", type=int, default=100,
                         help="Multiple update steps in one local epoch.")
-    parser.add_argument('-le2', "--local_epochs2", type=int, default=100)
+    parser.add_argument('-le2', "--local_epochs2", type=int, default=100, help = "只有GHDR用")
     parser.add_argument('-se', "--server_epochs", type=int, default=10)
     # parser.add_argument('-clr', "--local_learning_rate", type=str, default='0.001,0.001')
     # parser.add_argument('-slr', "--server_learning_rate", type=str, default='0.001,0.001')
@@ -338,8 +353,7 @@ if __name__ == '__main__':
     parser.add_argument('-enable_cloud_da', "--enable_cloud_da", type=bool, default=False)
     parser.add_argument('-F_FedAvg', "--F_FedAvg", type=bool, default=False)
     parser.add_argument('-EDI_FedAvg', "--EDI_FedAvg", type=bool,default=False)#不freeze也不fedavg就是个性化
-    # parser.add_argument('-P_FedAvg', "--P_FedAvg", type=bool,default=False)
-    parser.add_argument('-P_FedAvg', '--P_FedAvg', type=lambda x: bool(strtobool(x)), default=False, help="Enable P_FedAvg (true/false)")
+    parser.add_argument('-P_FedAvg', "--P_FedAvg", type=bool,default=False)
     parser.add_argument('-EDI_Freeze', "--EDI_Freeze", type=bool,default=False)
     parser.add_argument('-EDS', "--EDS", type=bool,default=False)#影响模型的forward
     parser.add_argument('-fedeval', "--fedeval", type=bool, default=False)
@@ -386,6 +400,7 @@ if __name__ == '__main__':
     print("=" * 50) #确认config
 
     print("Algorithm: {}".format(args.algorithm))
+    print("git_version: {}".format(args.git_version))
 
     print("=" * 50) #确认config
 

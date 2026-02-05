@@ -1,0 +1,68 @@
+{
+  "aim": {
+    "_type": "choice",
+    "_value": [
+      "CADA"
+    ]
+  },
+  "source_id": {
+    "_type": "choice",
+    "_value": [
+      4
+    ]
+  },
+  "target_id": {
+    "_type": "choice",
+    "_value": [
+      1
+    ]
+  },
+  "mode": {
+    "_type": "choice",
+    "_value": [
+      "CADA"
+    ]
+  },
+  "lambda_nce": {
+    "_type": "choice",
+    "_value": [
+      0.2
+    ]
+  },
+  "local_epochs": {
+    "_type": "choice",
+    "_value": [
+      150
+    ]
+  },
+  "batch_size_client": {
+    "_type": "choice",
+    "_value": [
+      256
+    ]
+  },
+  "local_learning_rate": {
+    "_type": "choice",
+    "_value": [
+      0.5e-4
+    ]
+  },
+  "enable_CADA": {
+    "_type": "choice",
+    "_value": [
+      "false"
+    ]
+  },
+  "new_da": {
+    "_type": "choice",
+    "_value": [
+      "false"
+    ]
+  },
+  "enable_cloud_da": {
+    "_type": "choice",
+    "_value": [
+      "false"
+    ]
+  }
+}

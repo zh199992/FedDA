@@ -61,7 +61,7 @@ class clientDANN(Client):
                 tgt_pred, _, _, _, _ = self.model(x2, x2)
                 src_test_loss = self.prediction_loss(src_pred, y1)
                 tgt_test_loss = self.prediction_loss(tgt_pred, y2)
-                global_step_test = (self.global_round * (max_local_epochs) + epoch)
+                global_step_test = (self.global_round * max_local_epochs + epoch)
                 self.writer.add_scalar(f'pretrain-test/mmd{self.source_id}-{self.target_id}', mmd_rbf(src_feature, tgt_feature), global_step_test)
                 self.writer.add_scalar('pretrain-test/source_id' + str(self.source_id), torch.sqrt(src_test_loss), global_step_test)
                 self.writer.add_scalar('pretrain-test/target_id' + str(self.target_id), torch.sqrt(tgt_test_loss), global_step_test)
@@ -91,7 +91,7 @@ class clientDANN(Client):
                     #     sys.exit("程序已终止")  # 终止训练循环
                     # elif self.mode== 'dann+baseline':
 
-            if self.early_stop_flag == True:
+            if self.early_stop_flag:
                 break
 
             self.model.train()
@@ -109,7 +109,7 @@ class clientDANN(Client):
                 src_reg_loss = self.prediction_loss(src_reg, y1)
                 tgt_reg, _, _, _, _ = self.model(x2, x2)  #应该几个模型？
                 tgt_reg_loss = self.prediction_loss(tgt_reg, y2)
-                global_step = (self.global_round * (max_local_epochs) + epoch) * len(self.trainloader)
+                global_step = (self.global_round * max_local_epochs + epoch) * len(self.trainloader)
                 self.writer.add_scalar('pretrain-train/source_id'+str(self.source_id),torch.sqrt(src_reg_loss),global_step+i)#为什么baseline算法中只有source1的trainloss可复现
                 #明明在程序中从未明确指定源和目标。 首先排除dis_loss
                 dis_loss = self.adv_loss(src_pred, src_labels) + self.adv_loss(tgt_pred, tgt_labels)
@@ -155,7 +155,7 @@ class clientDANN(Client):
                 tgt_pred, _, _, _, _ = self.model(x2, x2)
                 src_test_loss = self.prediction_loss(src_pred, y1)
                 tgt_test_loss = self.prediction_loss(tgt_pred, y2)
-                global_step_test = (self.global_round * (max_local_epochs) + epoch)
+                global_step_test = (self.global_round * max_local_epochs + epoch)
                 self.writer.add_scalar(f'finetune-test/mmd{self.source_id}-{self.target_id}',
                                        mmd_rbf(src_feature, tgt_feature), global_step_test)
                 self.writer.add_scalar('finetune-test/source_id' + str(self.source_id), torch.sqrt(src_test_loss),
@@ -190,7 +190,7 @@ class clientDANN(Client):
                 # x2 = torch.zeros_like(x2)#----------------------------
                 tgt_reg, tgt_pred, src_pred, _, _ = self.model(x2, x1)
                 tgt_reg_loss = self.prediction_loss(tgt_reg, y2)
-                global_step = (self.global_round * (max_local_epochs) + epoch) * len(self.trainloader)
+                global_step = (self.global_round * max_local_epochs + epoch) * len(self.trainloader)
                 self.writer.add_scalar('finetune-train/target_id'+str(self.target_id),torch.sqrt(tgt_reg_loss),global_step+i)#为什么baseline算法中只有source1的trainloss可复现
                 #明明在程序中从未明确指定源和目标。 首先排除dis_loss
                 dis_loss=self.adv_loss(src_pred, src_labels) + self.adv_loss(tgt_pred, tgt_labels)

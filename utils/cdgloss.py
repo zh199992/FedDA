@@ -1,6 +1,7 @@
 import torch
 import torch.nn.functional as F
 
+
 def custom_loss(h, y_hat, tau=0.5, L=1.0):
     """
     h: (N, D) - embeddings from the network

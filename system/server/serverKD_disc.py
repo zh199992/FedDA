@@ -1,17 +1,13 @@
+import torch.nn as nn
+import numpy as np
+# ===============================================================================
 import torch
 import torch.nn as nn
 import torch.optim as optim
-# from models import RULPredictor
-import torch
-import numpy as np
-from sklearn.preprocessing import MinMaxScaler
-import numpy as np
-
-
-#===============================================================================
-import torch
 from torch.utils.data import DataLoader, TensorDataset
-import numpy as np
+
+
+# from models import RULPredictor
 
 
 # 模拟四个子数据集（FD001~FD004）

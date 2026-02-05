@@ -3,12 +3,13 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+
 class FedCADA(nn.Module):
-    def __init__(self, input_dim=14, hidden_dim=32, num_layers=5,seq_len=30):
+    def __init__(self, input_dim=14, hidden_dim=32, num_layers=5, seq_len=30):
         super().__init__()
         self.seq_len = seq_len
         self.input_dim = input_dim
-        self.F = nn.LSTM(input_dim, hidden_dim, num_layers-3,batch_first=True)
+        self.F = nn.LSTM(input_dim, hidden_dim, num_layers - 3, batch_first=True)
         # self.lstm = nn.LSTM(input_dim, hidden_dim, num_layers,
         #                     batch_first=True, bidirectional=True)
         self.E_DI = nn.LSTM(hidden_dim, hidden_dim, 3, batch_first=True)
@@ -23,19 +24,19 @@ class FedCADA(nn.Module):
         )
         self.InfoNCEHead = nn.ModuleList([
             nn.Linear(hidden_dim, input_dim) for _ in range(seq_len)
-        ])#输入(n,30,14) 输出(30,n,30,14),如果第k个head，得到的正样本是(k,n,k,14),负样本是(k,n,[:k],14)+(k,n,[k+1:],14)
+        ])  # 输入(n,30,14) 输出(30,n,30,14),如果第k个head，得到的正样本是(k,n,k,14),负样本是(k,n,[:k],14)+(k,n,[k+1:],14)
 
     def forward(self, x):
         shallow, _ = self.F(x)
         f_T, _ = self.E_DI(shallow)
-        y_pred = self.predictor(f_T[:, -1, :]) # [B, hidden*2]
+        y_pred = self.predictor(f_T[:, -1, :])  # [B, hidden*2]
 
         B, K, M = x.shape
         assert K == self.seq_len and M == self.input_dim
         total_loss = 0.0
         for k in range(self.seq_len):
-            q_k = self.theta_layers[k](f_T)      # [B, input_dim]
-            x_k = x[:, k, :]                   # [B, input_dim]
+            q_k = self.theta_layers[k](f_T)  # [B, input_dim]
+            x_k = x[:, k, :]  # [B, input_dim]
 
             # 构造相似度：q_k 与 同样本所有 x_j 的点积（j=0,...,K-1）
             # 正样本：j == k
@@ -56,7 +57,6 @@ class FedCADA(nn.Module):
             total_loss += loss_k
 
         return y_pred, f_T, total_loss / K
-
 
 
 class InfoNCEHead(nn.Module):
@@ -80,8 +80,8 @@ class InfoNCEHead(nn.Module):
 
         total_loss = 0.0
         for k in range(K):
-            q_k = self.theta_layers[k](f_T)      # [B, M]
-            x_k = X_T[:, k, :]                   # [B, M]
+            q_k = self.theta_layers[k](f_T)  # [B, M]
+            x_k = X_T[:, k, :]  # [B, M]
 
             # 构造相似度矩阵：q_k 与 batch 内所有 x_k 的点积
             # 正样本：(q_k[i], x_k[i])

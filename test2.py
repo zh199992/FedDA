@@ -23,7 +23,7 @@ optimizer = torch.optim.Adam(mymodel.parameters(), lr=0.001)
 print(f"优化器后: {torch.cuda.memory_allocated(device) / 1024**2:.2f} MB")
 
 x = torch.rand((10240,30,18)).to(device)
-y = torch.rand((10240)).to(device)
+y = torch.rand(10240).to(device)
 print(f"数据后: {torch.cuda.memory_allocated(device) / 1024**2:.2f} MB")
 
 prediction = mymodel(x, x)
@@ -41,7 +41,7 @@ optimizer.zero_grad()
 print(f"zero_grad后: {torch.cuda.memory_allocated(device) / 1024**2:.2f} MB")
 
 x = torch.rand((1024,30,18)).to(device)
-y = torch.rand((1024)).to(device)
+y = torch.rand(1024).to(device)
 print(f"数据后: {torch.cuda.memory_allocated(device) / 1024**2:.2f} MB")
 
 prediction = mymodel(x, x)

@@ -1,10 +1,10 @@
-experimentName: cada
+experimentName: cada  #必须检查这个
 trialCommand: python main_1021.py
 trialCodeDirectory: .
 trialConcurrency: 1 #导致一个显卡跑n个实验
 trialGpuNumber: 1 #设置这个不能跑
 maxTrialNumber: 400
-searchSpaceFile: ./search_space/bestind.json
+searchSpaceFile: ./search_space/02CADA.json
 tuner:
   name: TPE
   classArgs:

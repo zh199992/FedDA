@@ -26,7 +26,7 @@
   "mode": {
     "_type": "choice",
     "_value": [
-      "Source-Only"
+      "wo-InfoNCE"
     ]
   },
   "lambda_nce": {

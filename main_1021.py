@@ -95,6 +95,8 @@ def run(args):
         if args.mode == "CADA" or args.mode == "wo-InfoNCE" or args.mode == "Source-Only":
             args.aim = args.mode+f"{args.source_id}to{args.target_id}gamma={args.lambda_nce}"
         server = serverCADA(args)
+        if args.source_id == args.target_id and args.mode != "centralized":
+            raise ValueError("source_id and target_id cannot be the same")
     elif args.algorithm == "DANN":
         if model_str == "cnn1D":
             # args.mode = "baseline"
@@ -221,8 +223,12 @@ def run(args):
     root_dir = find_project_root('FedDA')
     # directory = '/home/zhouheng/project/FedDA/logs/test1/config/'#比画图多一个/config/
     # directory = 'test2/config/'#比画图多一个/config/
-    exp_id = nni.get_experiment_id()
-    trial_id = nni.get_trial_id()
+    if os.environ.get('PYCHARM_HOSTED') != '1':
+        exp_id = nni.get_experiment_id()
+        trial_id = nni.get_trial_id()
+    else:
+        exp_id = 'local'
+        trial_id = 'local'
     config_path = os.path.join(root_dir, "logs", args.directory, 'config', args.algorithm, args.aim, exp_id,
                                trial_id + '-' + args.TIMESTAMP + '.json')
     graph_path = os.path.join(root_dir, "logs", args.directory, 'graph', args.algorithm, args.aim, exp_id,
@@ -283,7 +289,8 @@ def run(args):
         json.dump(var_args, file, indent=4)
 
     server.train()
-    nni.report_final_result(server.test_avg_loss)  # 或者 nni.report_final_result(1 - val_loss)
+    if os.environ.get('PYCHARM_HOSTED') != '1':
+        nni.report_final_result(server.test_avg_loss)  # 或者 nni.report_final_result(1 - val_loss)
 
     # 假设你有验证精度或损失指标
     # 例如 server.best_val_acc 或 server.best_val_loss
@@ -292,13 +299,17 @@ def run(args):
 
 if __name__ == '__main__':
     # 在主程序开始前启动监控线程
-
+    if os.environ.get('PYCHARM_HOSTED') == '1':
+        print("正在由 PyCharm Run 按钮执行")
+    else:
+        print("正在由命令行（如 python main.py）执行")
     # 你的训练代码
     total_start = time.time()
     # 创建ArgumentParser对象
     parser = argparse.ArgumentParser()
     # general  添加参数
-    parser.add_argument("-git_version", "--git_version", type=str)
+    parser.add_argument("-git_version", "--git_version", type=str, default="localdebug")
+    parser.add_argument("-device", "--device", type=str, default="cuda")
     parser.add_argument("-random_seed", "--random_seed", type=int, default=42)
     parser.add_argument('-d', "--directory", type=str, default="1120")#1021
     parser.add_argument('-aim', "--aim", type=str, default="debug")#训练目的
@@ -360,13 +371,13 @@ if __name__ == '__main__':
     parser.add_argument('-DA_loss', type=str, default="adv+mmd",choices=["adv+mmd","adv","mmd","none"])
     parser.add_argument('-lambda_mmd', "--lambda_mmd", type=float, default=0.05)
     parser.add_argument('-gamma', "--gamma", type=float, default=0.05)
-
     args = parser.parse_args()
 #---------------------------------------------------------------------
     # ---------------------------------------------------------------------
-    tuned_params = nni.get_next_parameter()
-    for key, value in tuned_params.items():
-        setattr(args, key, value)
+    if os.environ.get('PYCHARM_HOSTED') != '1':
+        tuned_params = nni.get_next_parameter()
+        for key, value in tuned_params.items():
+            setattr(args, key, value)
     # ---------------------------------------------------------------------
 # ---------------------------------------------------------------------
     if type(args.enable_cloud_da)==str:

@@ -893,9 +893,9 @@ class CADA(nn.Module):
         self.rul_predictor = nn.Sequential(
             nn.Linear(hidden_dim * 2, 32),
             nn.ReLU(),
-            # nn.Dropout(0.5),
+            nn.Dropout(0.5),
             nn.Linear(32, 16), nn.ReLU(),
-            # nn.Dropout(0.5),
+            nn.Dropout(0.5),
             nn.Linear(16, 1)
         )
 

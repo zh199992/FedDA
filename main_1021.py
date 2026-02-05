@@ -399,43 +399,8 @@ if __name__ == '__main__':
     seed_torch(args.random_seed)
     print("=" * 50) #确认config
 
-    print("Algorithm: {}".format(args.algorithm))
-    print("git_version: {}".format(args.git_version))
-
-    print("=" * 50) #确认config
-
-    print("CUDA_VISIBLE_DEVICES:", os.environ.get("CUDA_VISIBLE_DEVICES"))
-    args.device = torch.device("cuda")
-
-    print("=" * 50)
-    print("random_seed: {}".format(args.random_seed))
-    print("Dataset: {}".format(args.dataset))
-    print("Algorithm: {}".format(args.algorithm))
-    print(f'device{args.device}')
-    print(f'dataprocessing{args.dp}')
-    print("Backbone: {}".format(args.model_name))
-    print(f'num_clients{args.num_clients}')
-    print("Local batch size: {}".format(args.batch_size_client))
-    print("server batch size: {}".format(args.batch_size_server))
-    print("Local epochs: {}".format(args.local_epochs))
-    print("Server epochs: {}".format(args.server_epochs))
-    print("Local learing rate: {}".format(args.local_learning_rate))
-    print("Server learing rate: {}".format(args.server_learning_rate))
-    print("client learing rate decay: {}".format(args.client_lr_decay))
-    print("Server learing rate decay: {}".format(args.server_lr_decay))
-    if args.client_lr_decay or args.server_lr_decay:
-        print("Local learing rate decay gamma: {}".format(args.learning_rate_decay_gamma))
-    print("Total number of clients: {}".format(args.num_clients))
-
-
-    print("Global rounds: {}".format(args.global_rounds))
-
-    print("F_FedAvg:{}".format(args.F_FedAvg),type(args.F_FedAvg))
-    print("EDI_FedAvg:{}".format(args.EDI_FedAvg))
-    print("P_FedAvg:{}".format(args.P_FedAvg),type(args.P_FedAvg))
-    print("EDI_Freeze:{}".format(args.EDI_Freeze))
-    print("EDS:{}".format(args.EDS))
-    print("fedeval:{}".format(args.fedeval),type(args.fedeval))
+    for arg_name, arg_value in vars(args).items():
+        print("{}: {}".format(arg_name, arg_value))
 
     print("=" * 50)
 

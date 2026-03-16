@@ -1,3 +1,5 @@
+- 跑程序的sop 1.确认实验目的-config.yml的expname 2.选择searchSpaceFile 
+- 3.保存路径和server和model。 2.确认模块配置true/false 3.确认训练细节 
 # utils
 # 1.data_utils.py
 - visualize函数，实现t-SNE降维+可视化

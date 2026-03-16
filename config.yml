@@ -1,10 +1,10 @@
-experimentName: cada
-trialCommand: python main_nni.py
+experimentName: strongDA
+trialCommand: python main.py
 trialCodeDirectory: .
 trialConcurrency: 1 #导致一个显卡跑n个实验
 trialGpuNumber: 1 #设置这个不能跑
 maxTrialNumber: 200
-searchSpaceFile: ./search_space/cada.json
+searchSpaceFile: ./search_space/strongDA.json
 tuner:
   name: TPE
   classArgs:

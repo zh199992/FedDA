@@ -4,19 +4,25 @@ import torch.nn as nn
 import numpy as np
 import os
 from torch.utils.data import DataLoader, Dataset
-from utils.data_utils import read_client_data, read_client_data_centralized
+from utils.data_utils import read_client_data, read_client_data_centralized, MyDataset
 from utils.metric import SF
 import adamod
 from system.client.clientbase import Client
 import sys
 from utils.mmdloss import mmd_rbf
+import nni
+
+
+
 
 
 class clientDANN(Client):
-    def __init__(self, args, id, train_samples, test_samples, target_id, **kwargs):
-        self.source_id = id  # integer
+    def __init__(self, args, source_id, train_samples, test_samples, target_id, writer, **kwargs):
+        self.source_id = source_id  # integer
         self.target_id = target_id
-        super().__init__(args, id, train_samples, test_samples, **kwargs)
+        super().__init__(args, source_id, train_samples, test_samples, **kwargs)
+        self.source_model = self.model
+        self.target_model = copy.deepcopy(self.source_model)
         self.prediction_loss = nn.MSELoss()
         self.adv_loss = nn.CrossEntropyLoss()
         self.source_trainloader, self.target_train_loader = self.load_train_data()
@@ -43,33 +49,67 @@ class clientDANN(Client):
         self.per_layer = None
 
     def train(self):
-        print(f"[Client {self.source_id}] Source train data stats:")
-        for i, (x1, y1) in enumerate(self.source_trainloader):
-            print(f"  Batch {i}: x1.shape={x1.shape}, x1.mean={x1.mean().item():.4f}, y1.mean={y1.mean().item():.4f}")
-            if i >= 2: break
-        # self.model.to(self.device)
-        ####模式
-        self.model.train()
+        self.target_model_pretraining()  # target model
+        self.create_tgt_feature_dataloader()
+
+        self.source_model_pretraining()#source model
+        self.source_model_finetuning()
+        for target_param, source_param in zip(self.target_model.F.parameters(), self.source_model.F.parameters()):
+            target_param.data = source_param.data * self.miu_su + target_param.data * (1-self.miu_su)
+
+        for target_param, source_param in zip(self.target_model.LHDR.parameters(), self.source_model.LHDR.parameters()):
+            target_param.data = source_param.data * self.miu_su + target_param.data * (1-self.miu_su)
+
+        for target_param, source_param in zip(self.target_model.unique.parameters(), self.source_model.unique.parameters()):
+            target_param.data = source_param.data * self.miu_su + target_param.data * (1-self.miu_su)
+        self.target_model_finetuning()
+
+    def create_tgt_feature_dataloader(self):
+        self.target_model.eval()
+        all_features = []
+        for i, data in enumerate(self.target_train_loader):
+            x, y = data
+            x, y = x.to(self.device), y.to(self.device)
+            _, _, _, tgt_feature, _ = self.target_model(x, x)
+            all_features.append(tgt_feature.cpu())
+
+        final_features = torch.cat(all_features, dim=0)
+        final_labels = torch.zeros(len(final_features))
+        feature_dataset = MyDataset(final_features, final_labels)
+        self.tgt_feature_loader = DataLoader(
+            feature_dataset,
+            batch_size=self.batch_size,
+            shuffle=True
+        )
+    def source_model_finetuning(self):
+        pass
+
+
+    def source_model_pretraining(self):
+        self.counter = 0
+        self.best_target_test_loss = 999
+        self.best_source_test_loss = 999
+        self.source_model.train()
 
         max_local_epochs = self.local_epochs
         for epoch in range(max_local_epochs):
-            self.model.eval()
+            self.source_model.eval()
             for i, (data1, data2) in enumerate(zip(self.source_testloader, self.target_testloader)):
                 x1, y1 = data1
                 x2, y2 = data2
                 x1, x2, y1, y2 = x1.to(self.device), x2.to(self.device), y1.to(self.device), y2.to(self.device)
-                src_pred, _, _, src_feature, tgt_feature = self.model(x1, x2)
-                tgt_pred, _, _, _, _ = self.model(x2, x2)
+                src_pred, _, _, src_feature, tgt_feature = self.source_model(x1, x2, None, 'mode1')
+                tgt_pred, _, _, _, _ = self.source_model(x2, x2, None, 'mode1')
                 src_test_loss = self.prediction_loss(src_pred, y1)
                 tgt_test_loss = self.prediction_loss(tgt_pred, y2)
                 global_step_test = (self.global_round * max_local_epochs + epoch)
-                self.writer.add_scalar(f'pretrain-test/mmd{self.source_id}-{self.target_id}',
+                self.writer.add_scalar(f'source_pretraining-test/mmd{self.source_id}-{self.target_id}',
                                        mmd_rbf(src_feature, tgt_feature), global_step_test)
-                self.writer.add_scalar('pretrain-test/source_id' + str(self.source_id), torch.sqrt(src_test_loss),
+                self.writer.add_scalar('source_pretraining-test/source_id' + str(self.source_id), torch.sqrt(src_test_loss),
                                        global_step_test)
-                self.writer.add_scalar('pretrain-test/target_id' + str(self.target_id), torch.sqrt(tgt_test_loss),
+                self.writer.add_scalar('source_pretraining-test-test/target_id' + str(self.target_id), torch.sqrt(tgt_test_loss),
                                        global_step_test)
-                print(f"client{self.id}  local epoch: {epoch} ")
+                print(f"source-client{self.id}  pretraining local epoch: {epoch} ")
 
             if self.early_stop:
                 # 假设 evaluate() 会把结果存到 self.rs_test_rmse 列表里
@@ -78,8 +118,8 @@ class clientDANN(Client):
                 #     self.counter=0
                 # else:
                 #     self.counter += 1
-                if torch.sqrt(tgt_test_loss) < self.best_target_test_loss:
-                    self.best_target_test_loss = torch.sqrt(tgt_test_loss)
+                if torch.sqrt(src_test_loss) < self.best_source_test_loss:
+                    self.best_source_test_loss = torch.sqrt(src_test_loss)
                     self.counter = 0
                 else:
                     self.counter += 1
@@ -96,39 +136,36 @@ class clientDANN(Client):
             if self.early_stop_flag:
                 break
 
-            if self.per_layer:
-                for new_param, old_param in zip(self.model_backup.unique.parameters(),
-                                                self.model.unique.parameters()):  # 可以选择
-                    old_param.data = new_param.data.clone()
-
-            self.model.train()
-            for i, (data1, data2) in enumerate(zip(self.source_trainloader, self.target_train_loader)):  # zip会在任一耗尽时停止
-                print(f"client{self.id}  pretrain-local epoch: {epoch} ")
-                if i == 15:
-                    break
+            self.source_model.train()
+            for i, (data1, data2, data3) in enumerate(zip(self.source_trainloader, self.target_trainloader,
+                                                          self.tgt_feature_loader)):  # zip会在任一耗尽时停止
+                print(f"client{self.id}  source_pretraining-local epoch: {epoch} ")
                 x1, y1 = data1
                 x2, y2 = data2
-                x1, x2, y1, y2 = x1.to(self.device), x2.to(self.device), y1.to(self.device), y2.to(self.device)
+                tgt_feature, tgt_labels = data3
+                x1, x2, y1, y2, tgt_feature, tgt_labels = (
+                    x1.to(self.device), x2.to(self.device), y1.to(self.device), y2.to(self.device),
+                    tgt_feature.to(self.device), tgt_labels.to(self.device))
                 src_labels = torch.zeros(x1.size()[0]).type(torch.LongTensor).to(self.device)
-                tgt_labels = torch.ones(x2.size()[0]).type(torch.LongTensor).to(self.device)
+                # tgt_labels = torch.ones(x2.size()[0]).type(torch.LongTensor).to(self.device)
                 # x2 = torch.zeros_like(x2)#----------------------------
-                src_reg, src_pred, tgt_pred, src_feature, tgt_feature = self.model(x1, x2)
+                src_reg, src_pred, tgt_pred, src_feature, tgt_feature = self.source_model(x1, None, tgt_feature, 'mode2')
                 src_reg_loss = self.prediction_loss(src_reg, y1)
-                tgt_reg, _, _, _, _ = self.model(x2, x2)  # 应该几个模型？
+                tgt_reg, _, _, _, _ = self.source_model(x2, x2, None, 'mode1')  # 应该几个模型？
                 tgt_reg_loss = self.prediction_loss(tgt_reg, y2)
                 global_step = (self.global_round * max_local_epochs + epoch) * len(self.trainloader)
-                self.writer.add_scalar('pretrain-train/source_id' + str(self.source_id), torch.sqrt(src_reg_loss),
+                self.writer.add_scalar('source_pretraining-train/source_id' + str(self.source_id), torch.sqrt(src_reg_loss),
                                        global_step + i)  # 为什么baseline算法中只有source1的trainloss可复现
                 # 明明在程序中从未明确指定源和目标。 首先排除dis_loss
                 dis_loss = self.adv_loss(src_pred, src_labels) + self.adv_loss(tgt_pred, tgt_labels)
                 mmd_loss = mmd_rbf(src_feature, tgt_feature)
-                self.writer.add_scalar('pretrain-train/dis_loss' + f"{self.source_id}-{self.target_id}", dis_loss,
+                self.writer.add_scalar('source_pretraining-train/dis_loss' + f"{self.source_id}-{self.target_id}", dis_loss,
                                        global_step + i)
                 self.optimizer.zero_grad()
                 if self.mode == 'baseline':
                     loss = src_reg_loss
                 elif self.mode == 'dann' or "centralized":
-                    loss = self.gamma * src_reg_loss + (1 - self.gamma) * dis_loss
+                    loss = src_reg_loss + self.gamma* dis_loss
                     # loss = src_reg_loss + self.gamma * dis_loss
                 elif self.mode == 'mmd':
                     loss = self.gamma * src_reg_loss + (1 - self.gamma) * mmd_loss
@@ -149,28 +186,24 @@ class clientDANN(Client):
                 # if self.client_clip==True:
                 #     grad = torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=100)
                 self.optimizer.step()
-
+    def target_model_pretraining(self):
         self.counter = 0
         self.best_target_test_loss = 999
-        # -----------------------------
-        for epoch in range(
-                max_local_epochs):  # 这里是finetune流程   和da的区别在于1.先train后test 2.我只关心target test metric 但也可以多观察些数据3.
+        self.best_source_test_loss = 999
 
-            self.model.eval()
-            for i, (data1, data2) in enumerate(zip(self.source_testloader, self.target_testloader)):
-                x1, y1 = data1
-                x2, y2 = data2
-                x1, x2, y1, y2 = x1.to(self.device), x2.to(self.device), y1.to(self.device), y2.to(self.device)
-                src_pred, _, _, src_feature, tgt_feature = self.model(x1, x2)
-                tgt_pred, _, _, _, _ = self.model(x2, x2)
-                src_test_loss = self.prediction_loss(src_pred, y1)
-                tgt_test_loss = self.prediction_loss(tgt_pred, y2)
+        max_local_epochs = self.local_epochs
+        # -----------------------------
+        for epoch in range(max_local_epochs):
+
+            self.target_model.eval()
+            for i, data in enumerate(self.target_testloader):
+                x, y = data
+                x, y = x.to(self.device), y.to(self.device)
+                tgt_pred, _, _, _, _ = self.target_model(x, x)
+                tgt_test_loss = self.prediction_loss(tgt_pred, y)
                 global_step_test = (self.global_round * max_local_epochs + epoch)
-                self.writer.add_scalar(f'finetune-test/mmd{self.source_id}-{self.target_id}',
-                                       mmd_rbf(src_feature, tgt_feature), global_step_test)
-                self.writer.add_scalar('finetune-test/source_id' + str(self.source_id), torch.sqrt(src_test_loss),
-                                       global_step_test)
-                self.writer.add_scalar('finetune-test/target_id' + str(self.target_id), torch.sqrt(tgt_test_loss),
+
+                self.writer.add_scalar('target_pretraining-test/target_id' + str(self.target_id), torch.sqrt(tgt_test_loss),
                                        global_step_test)
 
             if self.early_stop:
@@ -187,29 +220,66 @@ class clientDANN(Client):
                     # print(f"init round num{init_round} continue round num{i}")
                     sys.exit("程序已终止")  # 终止训练循环
 
-            self.model.train()
-            for i, (data1, data2) in enumerate(zip(self.source_trainloader, self.target_train_loader)):  # zip会在任一耗尽时停止
-                print(f"client{self.id}  finetune-local epoch: {epoch} ")
-                if i == 15:
-                    break
-                x1, y1 = data1
-                x2, y2 = data2
-                x1, x2, y1, y2 = x1.to(self.device), x2.to(self.device), y1.to(self.device), y2.to(self.device)
-                src_labels = torch.zeros(x1.size()[0]).type(torch.LongTensor).to(self.device)
-                tgt_labels = torch.ones(x2.size()[0]).type(torch.LongTensor).to(self.device)
-                # x2 = torch.zeros_like(x2)#----------------------------
-                tgt_reg, tgt_pred, src_pred, _, _ = self.model(x2, x1)
-                tgt_reg_loss = self.prediction_loss(tgt_reg, y2)
+            self.target_model.train()
+            for i, data in enumerate(self.target_train_loader):  # zip会在任一耗尽时停止
+                print(f"client{self.id}  target_pretraining epoch: {epoch} ")
+                x, y = data
+                x, y = x.to(self.device), y.to(self.device)
+                tgt_reg, _, _, _, _ = self.target_model(x, x)
+                tgt_reg_loss = self.prediction_loss(tgt_reg, y)
                 global_step = (self.global_round * max_local_epochs + epoch) * len(self.trainloader)
-                self.writer.add_scalar('finetune-train/target_id' + str(self.target_id), torch.sqrt(tgt_reg_loss),
+                self.writer.add_scalar('target_pretraining-train/target_id' + str(self.target_id), torch.sqrt(tgt_reg_loss),
                                        global_step + i)  # 为什么baseline算法中只有source1的trainloss可复现
-                # 明明在程序中从未明确指定源和目标。 首先排除dis_loss
-                dis_loss = self.adv_loss(src_pred, src_labels) + self.adv_loss(tgt_pred, tgt_labels)
-                # if self.mode != "centralized":
-                self.writer.add_scalar('finetune-train/dis_loss' + f"{self.source_id}-{self.target_id}", dis_loss,
-                                       global_step + i)
                 self.optimizer.zero_grad()
+                loss = tgt_reg_loss
+                loss.backward()
+                self.optimizer.step()
 
+    def target_model_finetuning(self):
+        self.counter = 0
+        self.best_target_test_loss = 999
+        self.best_source_test_loss = 999
+
+        max_local_epochs = self.local_epochs
+        # -----------------------------
+        for epoch in range(max_local_epochs):
+
+            self.target_model.eval()
+            for i, data in enumerate(self.target_testloader):
+                x, y = data
+                x, y = x.to(self.device), y.to(self.device)
+                tgt_pred, _, _, _, _ = self.target_model(x, x)
+                tgt_test_loss = self.prediction_loss(tgt_pred, y)
+                global_step_test = (self.global_round * max_local_epochs + epoch)
+
+                self.writer.add_scalar('target_finetuning-test/target_id' + str(self.target_id), torch.sqrt(tgt_test_loss),
+                                       global_step_test)
+
+            if self.early_stop:
+                if torch.sqrt(tgt_test_loss) < self.best_target_test_loss:
+                    self.best_target_test_loss = torch.sqrt(tgt_test_loss)
+                    self.counter = 0
+                else:
+                    self.counter += 1
+
+                if self.counter >= self.patience:
+                    print("🔥🔥🔥 Early stopping triggered! Training halted due to no improvement.")
+                    # print(f"Best rmse: {self.best_rmse:.4f} at round {i - self.counter}")
+                    self.early_stop_flag = True
+                    # print(f"init round num{init_round} continue round num{i}")
+                    sys.exit("程序已终止")  # 终止训练循环
+
+            self.target_model.train()
+            for i, data in enumerate(self.target_train_loader):  # zip会在任一耗尽时停止
+                print(f"client{self.id}  target_finetuning epoch: {epoch} ")
+                x, y = data
+                x, y = x.to(self.device), y.to(self.device)
+                tgt_reg, _, _, _, _ = self.target_model(x, x)
+                tgt_reg_loss = self.prediction_loss(tgt_reg, y)
+                global_step = (self.global_round * max_local_epochs + epoch) * len(self.trainloader)
+                self.writer.add_scalar('target_finetuning-train/target_id' + str(self.target_id), torch.sqrt(tgt_reg_loss),
+                                       global_step + i)  # 为什么baseline算法中只有source1的trainloss可复现
+                self.optimizer.zero_grad()
                 loss = tgt_reg_loss
                 loss.backward()
                 self.optimizer.step()

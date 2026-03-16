@@ -1,0 +1,22 @@
+{
+  "aim": {
+    "_type": "choice",
+    "_value": ["fedpervssawa"]
+  },
+  "algorithm": {
+    "_type": "choice",
+    "_value": ["FedPer", "SAWA"]
+  },
+  "F_FedAvg": {
+    "_type": "choice",
+    "_value": [true]
+  },
+  "EDI_FedAvg": {
+    "_type": "choice",
+    "_value": [true]
+  },
+  "备注": {
+    "_type": "choice",
+    "_value": ["相比上一次实验qbd3w9t1，在serverFedAvg里加了report intermediate"]
+  }
+}

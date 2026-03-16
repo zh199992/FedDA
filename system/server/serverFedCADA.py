@@ -305,7 +305,7 @@ class serverFedCADA(Server):
             self.uploaded_ids.append(client.id)
             self.uploaded_weights.append(client.train_samples)
             self.uploaded_models.append(client.model)#整个上传
-            uploaded_shallow=torch.cat(client.shallow_feature,dim=0)
+            uploaded_shallow=torch.cat(client.shallow_feature,dim=0)#本来是一个list里面很多个batch
             dataset=MyDataset(uploaded_shallow,uploaded_shallow)
             self.uploaded_shallow_sets.append(dataset)  ####改动
 

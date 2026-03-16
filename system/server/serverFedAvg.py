@@ -1,8 +1,10 @@
 from system.client.clientFedAvg import clientAvg
 from system.server.serverbase import Server
 import torch
-from utils.model_diff import calculate_l2_diff
-import sys
+import torch.nn as nn
+import torch.nn.functional as F
+from utils.model_diff import calculate_l2_diff, aggregate_with_sawa
+import nni
 
 class serverAvg(Server):
     # def __init__(self, device, server_config):
@@ -29,7 +31,7 @@ class serverAvg(Server):
             else:
                 if i==0:
                     self.evaluate(round=i)
-
+            nni.report_intermediate_result(self.test_avg_loss)
             if self.args.client_lr_decay:
                 for client in self.clients:
                     client.learning_rate_scheduler = torch.optim.lr_scheduler.ExponentialLR(
@@ -46,6 +48,13 @@ class serverAvg(Server):
                 client.get_feature()
             self.receive_models_features()
             # self.uploaded_weights=[0.25,  0.25, 0.25, 0.25]##改动
+            if self.args.algorithm == 'SAWA':
+                self.uploaded_lhdrs = [nn.Sequential(*(list(i.F) + list(i.LHDR))) for i in self.uploaded_models]
+                self.uploaded_weights = aggregate_with_sawa(self.uploaded_lhdrs)#
+                for n in range(len(self.uploaded_weights)):
+                    self.writer.add_scalar(f'train/agg_weight{n+1}', self.uploaded_weights[n], i)
+
+            print(self.uploaded_weights)
             self.aggregate_parameters()
 
             if not self.args.fedeval:
@@ -76,3 +85,4 @@ class serverAvg(Server):
 
         # self.save_results()
         # self.save_global_model()
+

@@ -53,7 +53,7 @@ class Client(object):
         self.trainloader = self.load_train_data()
         self.testloader = self.load_test_data(1024)
 
-    def get_feature(self):
+    def get_feature(self):#server.train 调用
         self.shallow_feature = []
         self.middle_feature = []
         self.label = []
@@ -65,7 +65,7 @@ class Client(object):
             self.middle_feature.append(middle.detach())
             self.label.append(y.detach())
 
-    def set_parameters(self, model):
+    def set_parameters(self, model):#server.send 调用
         for new_param, old_param in zip(model.parameters(), self.model.parameters()):
             old_param.data = new_param.data.clone()
 

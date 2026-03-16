@@ -2,7 +2,7 @@
   "aim": {
     "_type": "choice",
     "_value": [
-      "CADA"
+      "strongDA"
     ]
   },
   "git_version": {

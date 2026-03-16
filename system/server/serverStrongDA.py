@@ -1,16 +1,16 @@
-from system.client.clientDANN_backup import clientDANN
+from system.client.clientStrongDA import clientDANN
 #---------------------------
 from system.server.serverbase import Server
 from utils.data_utils import read_client_data
 import torch
 #1.4个client，但是我通过超参数指定两个来训练   2.其实可以fedeval和indeval同步  只要画在两张图里就行 3.train代码的改变写在哪里
-class serverDANN(Server):
+class serverStrongDA(Server):
     # def __init__(self, device, server_config):
     def __init__(self, args):
         super().__init__(args)
         self.source_id=args.source_id
         self.target_id=args.target_id
-        self.set_clients(clientDANN)
+        self.set_clients(clientDANN)#一个client
         print("Finished creating server and clients.")
 
 

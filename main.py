@@ -90,6 +90,9 @@ def run(args):
             raise ValueError("source_id and target_id cannot be the same")
     elif args.algorithm == "StrongDA":
         if model_str == "cnn1D":
+            args.mode = "dann"
+            args.source_id = 3
+            args.target_id = 1
             args.model = model.conv_DANN3(data_dim,args.conv_init,args.gru_init, args.linear_init).to(args.device)
             if args.mode == "dann" or args.mode == "mmd":
                 args.aim = args.mode+f"{args.source_id} to {args.target_id} gamma={args.gamma}"
@@ -339,7 +342,7 @@ if __name__ == '__main__':
     parser.add_argument('-data', "--dataset", type=str, default="CMAPSSData")
     parser.add_argument('-m', "--model_name", type=str, default="cnn1D",choices=["cnn1D","lstm","FedRUL"])
     # parser.add_argument('-cloudm', "--model_name", type=str, default="cnn1D",choices=["cnn1D","lstm","FedRUL"])
-    parser.add_argument('-dp', "--dp", type=str, default="14-[0,1]",
+    parser.add_argument('-dp', "--dp", type=str, default="18-[0,1]",
                         choices=["14-[-1,1]", "18-[0,1]", "14-[0,1]", "18-[-1,1]"], help="dataprocessing")
     parser.add_argument('-train_ratio', "--train_ratio", type=float, default=1.0)
     parser.add_argument('-algo', "--algorithm", type=str, default="FedPer",##这个参数不传入server

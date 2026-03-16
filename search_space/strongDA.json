@@ -2,19 +2,25 @@
   "aim": {
     "_type": "choice",
     "_value": [
-      "strongDA"
+      "strongDAsource3"
+    ]
+  },
+  "algorithm": {
+    "_type": "choice",
+    "_value": [
+      "StrongDA"
     ]
   },
   "git_version": {
     "_type": "choice",
     "_value": [
-      "20260205v4"
+      "20260316v2"
     ]
   },
   "source_id": {
     "_type": "choice",
     "_value": [
-      1,2,3,4
+      3
     ]
   },
   "target_id": {
@@ -26,13 +32,19 @@
   "mode": {
     "_type": "choice",
     "_value": [
-      "Source-Only"
+      "dann"
     ]
   },
-  "lambda_nce": {
+  "miu_su": {
     "_type": "choice",
     "_value": [
-      0.2
+      1, 0.8, 0.6, 0.4, 0.2
+    ]
+  },
+  "gamma": {
+    "_type": "choice",
+    "_value": [
+      0.1, 1, 10, 100
     ]
   },
   "local_epochs": {
@@ -44,31 +56,13 @@
   "batch_size_client": {
     "_type": "choice",
     "_value": [
-      256
+      1024
     ]
   },
   "local_learning_rate": {
     "_type": "choice",
     "_value": [
-      0.5e-4
-    ]
-  },
-  "enable_CADA": {
-    "_type": "choice",
-    "_value": [
-      "false"
-    ]
-  },
-  "new_da": {
-    "_type": "choice",
-    "_value": [
-      "false"
-    ]
-  },
-  "enable_cloud_da": {
-    "_type": "choice",
-    "_value": [
-      "false"
+      1e-4
     ]
   }
 }

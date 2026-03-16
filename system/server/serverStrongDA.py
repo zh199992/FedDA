@@ -15,7 +15,7 @@ class serverStrongDA(Server):
 
 
     def train(self):
-        for i in range(0, self.global_rounds+1):  # +1是为了evaluate吗
+        for i in range(0, 1):  # +1是为了evaluate吗
             print(f"Round{i}")
             # if i%self.eval_gap == 0:#控制输出训练效果的间隔   为什么是获取了才evaluate？
             #     print(f"\n-------------Round number: {i}-------------")
@@ -36,7 +36,7 @@ class serverStrongDA(Server):
         source_test_set = read_client_data(self.dataset, self.source_id, self.args,is_train=False)
         target_test_set = read_client_data(self.dataset, self.target_id, self.args,is_train=False)
         client = clientObj(self.args,
-                           id=self.source_id,
+                           source_id=self.source_id,
                            train_samples=len(source_train_set),
                            test_samples=len(source_test_set), target_id = self.target_id, writer=self.writer)
         self.clients.append(client)

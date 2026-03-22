@@ -21,8 +21,19 @@ class clientDANN(Client):
         self.source_id = source_id  # integer
         self.target_id = target_id
         super().__init__(args, source_id, train_samples, test_samples, writer, **kwargs)
-        self.source_model = self.model
+        self.source_model = copy.deepcopy(self.model)
         self.target_model = copy.deepcopy(self.source_model)
+        if self.args.optimizer_client == 'adamod':
+            self.source_optimizer = adamod.AdaMod(self.source_model.parameters(), lr=self.learning_rate)
+            self.target_optimizer = adamod.AdaMod(self.target_model.parameters(), lr=self.learning_rate)
+        elif self.args.optimizer_client == 'adam':
+            self.source_optimizer = torch.optim.Adam(self.source_model.parameters(), lr=self.learning_rate)
+            self.target_optimizer = torch.optim.Adam(self.target_model.parameters(), lr=self.learning_rate)
+        elif self.args.optimizer_client == 'sgd':
+            self.source_optimizer = torch.optim.SGD(self.source_model.parameters(), lr=self.learning_rate)
+            self.target_optimizer = torch.optim.SGD(self.target_model.parameters(), lr=self.learning_rate)
+        else:
+            raise NotImplementedError
         self.prediction_loss = nn.MSELoss()
         self.adv_loss = nn.CrossEntropyLoss()
         self.source_trainloader, self.target_train_loader = self.load_train_data()
@@ -50,9 +61,10 @@ class clientDANN(Client):
 
     def train(self):
         self.target_model_pretraining()  # target model
+        nni.report_intermediate_result(self.best_target_test_loss)
         self.create_tgt_feature_dataloader()
-
         self.source_model_pretraining()#source model
+        # self.federated_averaging()
         # self.source_model_finetuning()
         for target_param, source_param in zip(self.target_model.F.parameters(), self.source_model.F.parameters()):
             target_param.data = source_param.data * self.miu_su + target_param.data * (1-self.miu_su)
@@ -63,6 +75,27 @@ class clientDANN(Client):
         for target_param, source_param in zip(self.target_model.unique.parameters(), self.source_model.unique.parameters()):
             target_param.data = source_param.data * self.miu_su + target_param.data * (1-self.miu_su)
         self.target_model_finetuning()
+        nni.report_intermediate_result(self.best_target_test_loss)
+        nni.report_final_result(self.best_target_test_loss)
+    def federated_averaging(self):
+        """
+        对两个模型进行加权聚合
+        alpha: model_a 的权重比例 (0 到 1 之间)
+        """
+        # 1. 创建一个新模型作为聚合后的容器
+        # global_model = copy.deepcopy(model_a)
+
+        # 2. 获取两个模型的参数字典
+        state_dict_t = self.target_model.state_dict()
+        state_dict_s = self.source_model.state_dict()
+
+        # 3. 创建用于存放聚合参数的字典
+        # combined_state_dict = global_model.state_dict()
+
+        # 4. 遍历所有参数键值对进行加权聚合
+        for key in state_dict_t:
+            # 计算公式: W_global = alpha * W_a + (1 - alpha) * W_b
+            state_dict_t[key] = self.miu_su * state_dict_s[key] + (1.0 - self.miu_su) * state_dict_t[key]
 
     def create_tgt_feature_dataloader(self):
         self.target_model.eval()
@@ -107,7 +140,7 @@ class clientDANN(Client):
                                        mmd_rbf(torch.flatten(src_feature, start_dim=1), torch.flatten(tgt_feature, start_dim=1)), global_step_test)
                 self.writer.add_scalar('source_pretraining-test/source_id' + str(self.source_id), torch.sqrt(src_test_loss),
                                        global_step_test)
-                self.writer.add_scalar('source_pretraining-test-test/target_id' + str(self.target_id), torch.sqrt(tgt_test_loss),
+                self.writer.add_scalar('source_pretraining-test/target_id' + str(self.target_id), torch.sqrt(tgt_test_loss),
                                        global_step_test)
 
 
@@ -132,9 +165,9 @@ class clientDANN(Client):
                     # if self.mode == 'baseline' or self.mode == 'dann':
                     #     sys.exit("程序已终止")  # 终止训练循环
                     # elif self.mode== 'dann+baseline':
-
-            if self.early_stop_flag:
-                break
+                    return
+            # if self.early_stop_flag:
+            #     break
 
             self.source_model.train()
             for i, (data1, data2, data3) in enumerate(zip(self.source_trainloader, self.target_train_loader,
@@ -161,7 +194,7 @@ class clientDANN(Client):
                 # mmd_loss = mmd_rbf(torch.flatten(src_feature, start_dim=1), torch.flatten(tgt_feature, start_dim=1))
                 self.writer.add_scalar('source_pretraining-train/dis_loss' + f"{self.source_id}-{self.target_id}", dis_loss,
                                        global_step + i)
-                self.optimizer.zero_grad()
+                self.source_optimizer.zero_grad()
                 if self.mode == 'baseline':
                     loss = src_reg_loss
                 elif self.mode == 'dann' or self.mode == "centralized":
@@ -185,7 +218,7 @@ class clientDANN(Client):
                 loss.backward()
                 # if self.client_clip==True:
                 #     grad = torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=100)
-                self.optimizer.step()
+                self.source_optimizer.step()
     def target_model_pretraining(self):
         self.counter = 0
         self.best_target_test_loss = 999
@@ -202,6 +235,7 @@ class clientDANN(Client):
                 x, y = data
                 x, y = x.to(self.device), y.to(self.device)
                 tgt_pred, _, _, _, _ = self.target_model(x, x, None, 'mode1')
+                # tgt_pred, _, _ = self.target_model(x)
                 tgt_test_loss = self.prediction_loss(tgt_pred, y)
                 global_step_test = (self.global_round * max_local_epochs + epoch)
 
@@ -220,22 +254,23 @@ class clientDANN(Client):
                     # print(f"Best rmse: {self.best_rmse:.4f} at round {i - self.counter}")
                     self.early_stop_flag = True
                     # print(f"init round num{init_round} continue round num{i}")
-                    sys.exit("程序已终止")  # 终止训练循环
-
+                    # sys.exit("程序已终止")  # 终止训练循环
+                    return
             self.target_model.train()
             for i, data in enumerate(self.target_train_loader):  # zip会在任一耗尽时停止
                 print(f"client{self.target_id}  target_pretraining epoch: {epoch}  batch {i}")
                 x, y = data
                 x, y = x.to(self.device), y.to(self.device)
                 tgt_reg, _, _, _, _ = self.target_model(x, x, None, 'mode1')
+                # tgt_reg, _, _ = self.target_model(x)
                 tgt_reg_loss = self.prediction_loss(tgt_reg, y)
                 global_step = (self.global_round * max_local_epochs + epoch) * len(self.trainloader)
                 self.writer.add_scalar('target_pretraining-train/target_id' + str(self.target_id), torch.sqrt(tgt_reg_loss),
                                        global_step + i)  # 为什么baseline算法中只有source1的trainloss可复现
-                self.optimizer.zero_grad()
+                self.target_optimizer.zero_grad()
                 loss = tgt_reg_loss
                 loss.backward()
-                self.optimizer.step()
+                self.target_optimizer.step()
 
     def target_model_finetuning(self):
         self.counter = 0
@@ -270,8 +305,8 @@ class clientDANN(Client):
                     # print(f"Best rmse: {self.best_rmse:.4f} at round {i - self.counter}")
                     self.early_stop_flag = True
                     # print(f"init round num{init_round} continue round num{i}")
-                    sys.exit("程序已终止")  # 终止训练循环
-
+                    # sys.exit("程序已终止")  # 终止训练循环
+                    return
             self.target_model.train()
             for i, data in enumerate(self.target_train_loader):  # zip会在任一耗尽时停止
                 print(f"client{self.target_id}  target_finetuning epoch: {epoch} batch{i}")
@@ -282,10 +317,10 @@ class clientDANN(Client):
                 global_step = (self.global_round * max_local_epochs + epoch) * len(self.trainloader)
                 self.writer.add_scalar('target_finetuning-train/target_id' + str(self.target_id), torch.sqrt(tgt_reg_loss),
                                        global_step + i)  # 为什么baseline算法中只有source1的trainloss可复现
-                self.optimizer.zero_grad()
+                self.target_optimizer.zero_grad()
                 loss = tgt_reg_loss
                 loss.backward()
-                self.optimizer.step()
+                self.target_optimizer.step()
 
     def load_train_data(self, batch_size=None):
         if batch_size == None:

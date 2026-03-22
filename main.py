@@ -90,20 +90,22 @@ def run(args):
             raise ValueError("source_id and target_id cannot be the same")
     elif args.algorithm == "StrongDA":
         if model_str == "cnn1D":
-            args.mode = "dann"
-            args.source_id = 3
-            args.target_id = 1
+            # args.mode = "dann"
+            # args.source_id = 3
+            # args.target_id = 1
             args.model = model.conv_DANN3(data_dim,args.conv_init,args.gru_init, args.linear_init).to(args.device)
+            # args.model = model.GHDR_FL(data_dim).to(args.device)
+            # args.model = model.NEW_LSTM(data_dim).to(args.device)
             if args.mode == "dann" or args.mode == "mmd":
-                args.aim = args.mode+f"{args.source_id} to {args.target_id} gamma={args.gamma}"
+                args.aim = args.mode+f"{args.source_id}to{args.target_id}gamma={args.gamma}"
             elif args.mode == "baseline":
-                args.aim = args.mode+f"{args.source_id} to {args.target_id}"
+                args.aim = args.mode+f"{args.source_id}to{args.target_id}"
             elif args.mode == "mutual":
-                args.aim = args.mode+f"{args.source_id} + {args.target_id} gamma={args.gamma}"
+                args.aim = args.mode+f"{args.source_id}+{args.target_id}gamma={args.gamma}"
             elif args.mode == "centralized":
-                args.aim = args.mode+f"target{args.target_id} gamma={args.gamma}"
+                args.aim = args.mode+f"target{args.target_id}gamma={args.gamma}"
             elif args.mode == "CADA":
-                args.aim = args.mode + f"target{args.target_id} gamma={args.gamma}"
+                args.aim = args.mode + f"target{args.target_id}gamma={args.gamma}"
             if args.source_id == args.target_id and args.mode != "centralized":
                 raise ValueError("source_id and target_id cannot be the same")
         else:
@@ -255,9 +257,9 @@ def run(args):
         exp_id = 'pc'
         trial_id = 'pc'
     config_path = os.path.join(root_dir, "logs", 'config',
-                               args.aim, args.algorithm, exp_id, trial_id + '-' + args.TIMESTAMP + '.json')
+                            args.algorithm, exp_id, args.aim, trial_id + '-' + args.TIMESTAMP + '.json')
     graph_path = os.path.join(root_dir, "logs", 'graph',#这里示意一下，实际在serverbase-init 生效
-                              args.aim, args.algorithm, exp_id, trial_id + '-' + args.TIMESTAMP)
+                              args.algorithm, exp_id, args.aim, trial_id + '-' + args.TIMESTAMP)
     index_dir = os.path.join(root_dir, "logs", ".experiment_index")
 
     os.makedirs(index_dir, exist_ok=True)
@@ -316,8 +318,8 @@ def run(args):
     #===================================================================开始训练
     server.train()
     if os.environ.get('PYCHARM_HOSTED') != '1':
-        nni.report_final_result(server.test_avg_loss)  # 或者 nni.report_final_result(1 - val_loss)
-
+        # nni.report_final_result(server.test_avg_loss)  # 或者 nni.report_final_result(1 - val_loss)
+        nni.report_final_result(server.clients[0].best_target_test_loss)
     # 假设你有验证精度或损失指标
     # 例如 server.best_val_acc 或 server.best_val_loss
 

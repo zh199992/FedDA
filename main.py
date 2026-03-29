@@ -97,7 +97,7 @@ def run(args):
             # args.model = model.GHDR_FL(data_dim).to(args.device)
             # args.model = model.NEW_LSTM(data_dim).to(args.device)
             if args.mode == "dann" or args.mode == "mmd":
-                args.aim = args.mode+f"{args.source_id}to{args.target_id}gamma={args.gamma}"
+                args.aim = args.mode+f"{args.source_id}to{args.target_id}gamma={args.gamma}dis_lr={args.discriminator_lr}miu_su={args.miu_su}"
             elif args.mode == "baseline":
                 args.aim = args.mode+f"{args.source_id}to{args.target_id}"
             elif args.mode == "mutual":
@@ -246,6 +246,8 @@ def run(args):
     # monitor_thread.start()
 
     print(args.model)
+    if args.server_model is not None:
+        print(args.server_model)
     print(args.TIMESTAMP)
     root_dir = find_project_root('FedDA')
     # directory = '/home/zhouheng/project/FedDA/logs/test1/config/'#比画图多一个/config/
@@ -319,7 +321,7 @@ def run(args):
     server.train()
     if os.environ.get('PYCHARM_HOSTED') != '1':
         # nni.report_final_result(server.test_avg_loss)  # 或者 nni.report_final_result(1 - val_loss)
-        nni.report_final_result(server.clients[0].best_target_test_loss)
+        nni.report_final_result(server.clients[0].best_target_test_loss.item())
     # 假设你有验证精度或损失指标
     # 例如 server.best_val_acc 或 server.best_val_loss
 

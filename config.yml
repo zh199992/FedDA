@@ -1,9 +1,9 @@
-experimentName: strongDAsource2
+experimentName: strongDAsource1
 trialCommand: python main.py
 trialCodeDirectory: .
 trialConcurrency: 1 #导致一个显卡跑n个实验
 trialGpuNumber: 1 #设置这个不能跑
-maxTrialNumber: 200
+maxTrialNumber: 2000
 searchSpaceFile: ./search_space/strongDA.json
 tuner:
   name: TPE

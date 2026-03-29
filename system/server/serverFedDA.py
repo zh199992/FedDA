@@ -25,6 +25,16 @@ class serverDA(Server):
         if self.args.optimizer_server == 'adamod':
             self.optimizer = adamod.AdaMod(self.global_model.parameters(), lr=self.lr1)
         elif self.args.optimizer_server == 'adam':
+            base_params = [
+                {'params': self.global_model.LHDR.parameters()},
+            ]
+            discriminator_params = [
+                {
+                    'params': self.global_model.discriminator.parameters(),
+                    'lr': self.lr1 * args.discriminator_lr  # 这里可以根据需要调整比例
+                }
+            ]
+            self.source_optimizer = torch.optim.Adam(base_params + discriminator_params, lr=self.lr1)
             self.optimizer = torch.optim.Adam(self.global_model.parameters(), lr=self.lr1)
         elif self.args.optimizer_server == 'sgd':
             self.optimizer = torch.optim.SGD(self.global_model.parameters(), lr=self.lr1)

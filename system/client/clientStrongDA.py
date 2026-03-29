@@ -11,9 +11,38 @@ from system.client.clientbase import Client
 import sys
 from utils.mmdloss import mmd_rbf
 import nni
+import functools
 
+def monitor_gpu_memory(func):
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs):
+        if not torch.cuda.is_available():
+            return func(*args, **kwargs)
 
+        # 清空缓存，确保数据准确（可选，但推荐）
+        torch.cuda.empty_cache()
 
+        # 记录开始前状态
+        before_alloc = torch.cuda.memory_allocated() / 1024 ** 2
+        before_max = torch.cuda.max_memory_allocated() / 1024 ** 2
+
+        print(f"\n🚀 [显存监控] 进入函数: {func.__name__}")
+        print(f"   起始占用: {before_alloc:.2f} MB")
+
+        result = func(*args, **kwargs)
+
+        # 记录结束后状态
+        after_alloc = torch.cuda.memory_allocated() / 1024 ** 2
+        after_max = torch.cuda.max_memory_allocated() / 1024 ** 2
+
+        print(f"✅ [显存监控] 离开函数: {func.__name__}")
+        print(f"   最终占用: {after_alloc:.2f} MB (净增: {after_alloc - before_alloc:.2f} MB)")
+        print(f"   过程峰值: {after_max:.2f} MB")
+        print("-" * 30)
+
+        return result
+
+    return wrapper
 
 
 class clientDANN(Client):
@@ -23,11 +52,25 @@ class clientDANN(Client):
         super().__init__(args, source_id, train_samples, test_samples, writer, **kwargs)
         self.source_model = copy.deepcopy(self.model)
         self.target_model = copy.deepcopy(self.source_model)
+        if hasattr(self.source_model.unique[0], 'flatten_parameters'):
+            self.source_model.unique[0].flatten_parameters()
+            self.target_model.unique[0].flatten_parameters()
         if self.args.optimizer_client == 'adamod':
             self.source_optimizer = adamod.AdaMod(self.source_model.parameters(), lr=self.learning_rate)
             self.target_optimizer = adamod.AdaMod(self.target_model.parameters(), lr=self.learning_rate)
         elif self.args.optimizer_client == 'adam':
-            self.source_optimizer = torch.optim.Adam(self.source_model.parameters(), lr=self.learning_rate)
+            base_params = [
+                {'params': self.source_model.F.parameters()},
+                {'params': self.source_model.LHDR.parameters()},
+                {'params': self.source_model.unique.parameters()}
+            ]
+            discriminator_params = [
+                {
+                    'params': self.source_model.discriminator.parameters(),
+                    'lr': self.learning_rate * args.discriminator_lr  # 这里可以根据需要调整比例
+                }
+            ]
+            self.source_optimizer = torch.optim.Adam(base_params + discriminator_params, lr=self.learning_rate)
             self.target_optimizer = torch.optim.Adam(self.target_model.parameters(), lr=self.learning_rate)
         elif self.args.optimizer_client == 'sgd':
             self.source_optimizer = torch.optim.SGD(self.source_model.parameters(), lr=self.learning_rate)
@@ -61,7 +104,7 @@ class clientDANN(Client):
 
     def train(self):
         self.target_model_pretraining()  # target model
-        nni.report_intermediate_result(self.best_target_test_loss)
+        nni.report_intermediate_result(self.best_target_test_loss.item())
         self.create_tgt_feature_dataloader()
         self.source_model_pretraining()#source model
         # self.federated_averaging()
@@ -75,8 +118,10 @@ class clientDANN(Client):
         for target_param, source_param in zip(self.target_model.unique.parameters(), self.source_model.unique.parameters()):
             target_param.data = source_param.data * self.miu_su + target_param.data * (1-self.miu_su)
         self.target_model_finetuning()
-        nni.report_intermediate_result(self.best_target_test_loss)
-        nni.report_final_result(self.best_target_test_loss)
+        nni.report_intermediate_result(self.best_target_test_loss.item())
+        # nni.report_final_result(self.best_target_test_loss.item())
+
+    @monitor_gpu_memory
     def federated_averaging(self):
         """
         对两个模型进行加权聚合
@@ -97,17 +142,19 @@ class clientDANN(Client):
             # 计算公式: W_global = alpha * W_a + (1 - alpha) * W_b
             state_dict_t[key] = self.miu_su * state_dict_s[key] + (1.0 - self.miu_su) * state_dict_t[key]
 
+    @monitor_gpu_memory
     def create_tgt_feature_dataloader(self):
         self.target_model.eval()
         all_features = []
-        for i, data in enumerate(self.target_train_loader):
-            x, y = data
-            x, y = x.to(self.device), y.to(self.device)
-            _, _, _, tgt_feature, _ = self.target_model(x, x, None, 'mode1')
-            all_features.append(tgt_feature.cpu())
+        with torch.no_grad():
+            for i, data in enumerate(self.target_train_loader):
+                x, y = data
+                x, y = x.to(self.device), y.to(self.device)
+                _, _, _, tgt_feature, _ = self.target_model(x, x, None, 'mode1')
+                all_features.append(tgt_feature.cpu())
 
         final_features = torch.cat(all_features, dim=0)
-        final_labels = torch.zeros(len(final_features))
+        final_labels = torch.ones(len(final_features))##注意了 之前弄错了
         feature_dataset = MyDataset(final_features, final_labels)
         self.tgt_feature_loader = DataLoader(
             feature_dataset,
@@ -117,7 +164,7 @@ class clientDANN(Client):
     def source_model_finetuning(self):
         pass
 
-
+    @monitor_gpu_memory
     def source_model_pretraining(self):
         self.counter = 0
         self.best_target_test_loss = 999
@@ -127,21 +174,22 @@ class clientDANN(Client):
         max_local_epochs = self.local_epochs
         for epoch in range(max_local_epochs):
             self.source_model.eval()
-            for i, (data1, data2) in enumerate(zip(self.source_testloader, self.target_testloader)):
-                x1, y1 = data1
-                x2, y2 = data2
-                x1, x2, y1, y2 = x1.to(self.device), x2.to(self.device), y1.to(self.device), y2.to(self.device)
-                src_pred, _, _, src_feature, tgt_feature = self.source_model(x1, x2, None, 'mode1')
-                tgt_pred, _, _, _, _ = self.source_model(x2, x2, None, 'mode1')
-                src_test_loss = self.prediction_loss(src_pred, y1)
-                tgt_test_loss = self.prediction_loss(tgt_pred, y2)
-                global_step_test = (self.global_round * max_local_epochs + epoch)
-                self.writer.add_scalar(f'source_pretraining-test/mmd{self.source_id}-{self.target_id}',
-                                       mmd_rbf(torch.flatten(src_feature, start_dim=1), torch.flatten(tgt_feature, start_dim=1)), global_step_test)
-                self.writer.add_scalar('source_pretraining-test/source_id' + str(self.source_id), torch.sqrt(src_test_loss),
-                                       global_step_test)
-                self.writer.add_scalar('source_pretraining-test/target_id' + str(self.target_id), torch.sqrt(tgt_test_loss),
-                                       global_step_test)
+            with torch.no_grad():
+                for i, (data1, data2) in enumerate(zip(self.source_testloader, self.target_testloader)):
+                    x1, y1 = data1
+                    x2, y2 = data2
+                    x1, x2, y1, y2 = x1.to(self.device), x2.to(self.device), y1.to(self.device), y2.to(self.device)
+                    src_pred, _, _, src_feature, tgt_feature = self.source_model(x1, x2, None, 'mode1')
+                    tgt_pred, _, _, _, _ = self.source_model(x2, x2, None, 'mode1')
+                    src_test_loss = self.prediction_loss(src_pred, y1)
+                    tgt_test_loss = self.prediction_loss(tgt_pred, y2)
+                    global_step_test = (self.global_round * max_local_epochs + epoch)
+                    self.writer.add_scalar(f'source_pretraining-test/mmd{self.source_id}-{self.target_id}',
+                                           mmd_rbf(torch.flatten(src_feature, start_dim=1), torch.flatten(tgt_feature, start_dim=1)), global_step_test)
+                    self.writer.add_scalar('source_pretraining-test/source_id' + str(self.source_id), torch.sqrt(src_test_loss),
+                                           global_step_test)
+                    self.writer.add_scalar('source_pretraining-test/target_id' + str(self.target_id), torch.sqrt(tgt_test_loss),
+                                           global_step_test)
 
 
             if self.early_stop:
@@ -194,6 +242,8 @@ class clientDANN(Client):
                 # mmd_loss = mmd_rbf(torch.flatten(src_feature, start_dim=1), torch.flatten(tgt_feature, start_dim=1))
                 self.writer.add_scalar('source_pretraining-train/dis_loss' + f"{self.source_id}-{self.target_id}", dis_loss,
                                        global_step + i)
+                self.writer.add_scalar(f'source_pretraining-train/mmd{self.source_id}-{self.target_id}',
+                                       mmd_rbf(torch.flatten(src_feature, start_dim=1), torch.flatten(target_feature, start_dim=1)), global_step + i)
                 self.source_optimizer.zero_grad()
                 if self.mode == 'baseline':
                     loss = src_reg_loss
@@ -219,6 +269,8 @@ class clientDANN(Client):
                 # if self.client_clip==True:
                 #     grad = torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=100)
                 self.source_optimizer.step()
+
+    @monitor_gpu_memory
     def target_model_pretraining(self):
         self.counter = 0
         self.best_target_test_loss = 999
@@ -231,16 +283,17 @@ class clientDANN(Client):
         for epoch in range(max_local_epochs):
 
             self.target_model.eval()
-            for i, data in enumerate(self.target_testloader):
-                x, y = data
-                x, y = x.to(self.device), y.to(self.device)
-                tgt_pred, _, _, _, _ = self.target_model(x, x, None, 'mode1')
-                # tgt_pred, _, _ = self.target_model(x)
-                tgt_test_loss = self.prediction_loss(tgt_pred, y)
-                global_step_test = (self.global_round * max_local_epochs + epoch)
+            with torch.no_grad():
+                for i, data in enumerate(self.target_testloader):
+                    x, y = data
+                    x, y = x.to(self.device), y.to(self.device)
+                    tgt_pred, _, _, _, _ = self.target_model(x, x, None, 'mode1')
+                    # tgt_pred, _, _ = self.target_model(x)
+                    tgt_test_loss = self.prediction_loss(tgt_pred, y)
+                    global_step_test = (self.global_round * max_local_epochs + epoch)
 
-                self.writer.add_scalar('target_pretraining-test/target_id' + str(self.target_id), torch.sqrt(tgt_test_loss),
-                                       global_step_test)
+                    self.writer.add_scalar('target_pretraining-test/target_id' + str(self.target_id), torch.sqrt(tgt_test_loss),
+                                           global_step_test)
 
             if self.early_stop:
                 if torch.sqrt(tgt_test_loss) < self.best_target_test_loss:
@@ -272,6 +325,7 @@ class clientDANN(Client):
                 loss.backward()
                 self.target_optimizer.step()
 
+    @monitor_gpu_memory
     def target_model_finetuning(self):
         self.counter = 0
         self.best_target_test_loss = 999
@@ -283,15 +337,16 @@ class clientDANN(Client):
         for epoch in range(max_local_epochs):
 
             self.target_model.eval()
-            for i, data in enumerate(self.target_testloader):
-                x, y = data
-                x, y = x.to(self.device), y.to(self.device)
-                tgt_pred, _, _, _, _ = self.target_model(x, x, None, 'mode1')
-                tgt_test_loss = self.prediction_loss(tgt_pred, y)
-                global_step_test = (self.global_round * max_local_epochs + epoch)
+            with torch.no_grad():
+                for i, data in enumerate(self.target_testloader):
+                    x, y = data
+                    x, y = x.to(self.device), y.to(self.device)
+                    tgt_pred, _, _, _, _ = self.target_model(x, x, None, 'mode1')
+                    tgt_test_loss = self.prediction_loss(tgt_pred, y)
+                    global_step_test = (self.global_round * max_local_epochs + epoch)
 
-                self.writer.add_scalar('target_finetuning-test/target_id' + str(self.target_id), torch.sqrt(tgt_test_loss),
-                                       global_step_test)
+                    self.writer.add_scalar('target_finetuning-test/target_id' + str(self.target_id), torch.sqrt(tgt_test_loss),
+                                           global_step_test)
 
             if self.early_stop:
                 if torch.sqrt(tgt_test_loss) < self.best_target_test_loss:
@@ -326,7 +381,7 @@ class clientDANN(Client):
         if batch_size == None:
             batch_size = self.batch_size
         source_train_data = read_client_data(self.dataset, self.source_id, self.args, is_train=True)
-        target_train_data = read_client_data(self.dataset, self.target_id, self.args, is_train=True)
+        target_train_data = read_client_data(self.dataset, self.target_id, self.args, is_train=True, train_ratio=self.args.train_ratio)
         return DataLoader(source_train_data, batch_size, drop_last=False, shuffle=True), DataLoader(target_train_data,
                                                                                                     batch_size,
                                                                                                     drop_last=False,

@@ -13,7 +13,7 @@
   },
   "batch_size_server": {
     "_type": "choice",
-    "_value": [512,256,128]
+    "_value": [512]
   },
   "server_learning_rate": {
     "_type": "choice",
@@ -65,7 +65,7 @@
   },
   "EDS": {
     "_type": "choice",
-    "_value": ["true", "false"]
+    "_value": ["false"]
   },
   "enable_cloud_da": {
     "_type": "choice",

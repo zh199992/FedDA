@@ -8,19 +8,7 @@
   "git_version": {
     "_type": "choice",
     "_value": [
-      "20260205v4"
-    ]
-  },
-  "source_id": {
-    "_type": "choice",
-    "_value": [
-      1,2,3,4
-    ]
-  },
-  "target_id": {
-    "_type": "choice",
-    "_value": [
-      1,2,3,4
+      "20260330v1"
     ]
   },
   "mode": {

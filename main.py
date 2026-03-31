@@ -44,16 +44,18 @@ import subprocess
 
 def get_git_info():
     try:
-        # 1. 获取当前分支名
         branch = subprocess.check_output(['git', 'rev-parse', '--abbrev-ref', 'HEAD']).decode('utf-8').strip()
-
-        # 2. 获取当前 commit hash (前 7 位)
         commit_hash = subprocess.check_output(['git', 'rev-parse', '--short', 'HEAD']).decode('utf-8').strip()
 
-        # 3. 检查是否有未提交的改动 (Dirty check)
-        # 如果返回不为空，说明有文件修改了但没 commit
-        status = subprocess.check_output(['git', 'status', '--porcelain']).decode('utf-8').strip()
-        is_dirty = "DIRTY (Uncommitted changes!)" if status else "CLEAN"
+        # 获取详细状态
+        status_output = subprocess.check_output(['git', 'status', '--porcelain']).decode('utf-8').strip()
+
+        if status_output:
+            # 提取前两个改动的文件名作为诊断信息
+            changes = [line[:60] for line in status_output.split('\n')[:2]]
+            is_dirty = f"DIRTY! (Changes: {', '.join(changes)}...)"
+        else:
+            is_dirty = "CLEAN"
 
         return f"Git Repo: [{branch}] @ {commit_hash} - Status: {is_dirty}"
     except Exception as e:

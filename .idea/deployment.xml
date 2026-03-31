@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
-  <component name="PublishConfigData" autoUpload="Always" serverName="zh@10.13.74.98:6012 key (5)" remoteFilesAllowedToDisappearOnAutoupload="false" autoUploadExternalChanges="true" showNewOnTargetInSync="false">
+  <component name="PublishConfigData" autoUpload="Always" serverName="zh@10.13.74.98:6012 key (5)" exclude=".svn;.cvs;.idea;.DS_Store;.hg;*.hprof;*.pyc" remoteFilesAllowedToDisappearOnAutoupload="false" autoUploadExternalChanges="true" showNewOnTargetInSync="false">
     <serverData>
       <paths name="54_fltest">
         <serverdata>

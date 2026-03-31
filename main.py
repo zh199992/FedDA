@@ -39,6 +39,27 @@ from utils.gpu_select import get_least_loaded_gpu_id
 import threading
 import time
 import GPUtil
+import subprocess
+
+
+def get_git_info():
+    try:
+        # 1. 获取当前分支名
+        branch = subprocess.check_output(['git', 'rev-parse', '--abbrev-ref', 'HEAD']).decode('utf-8').strip()
+
+        # 2. 获取当前 commit hash (前 7 位)
+        commit_hash = subprocess.check_output(['git', 'rev-parse', '--short', 'HEAD']).decode('utf-8').strip()
+
+        # 3. 检查是否有未提交的改动 (Dirty check)
+        # 如果返回不为空，说明有文件修改了但没 commit
+        status = subprocess.check_output(['git', 'status', '--porcelain']).decode('utf-8').strip()
+        is_dirty = "DIRTY (Uncommitted changes!)" if status else "CLEAN"
+
+        return f"Git Repo: [{branch}] @ {commit_hash} - Status: {is_dirty}"
+    except Exception as e:
+        return f"Git Info Error: {e}"
+
+
 
 def monitor_gpu_memory(interval=0.5, log_file="gpu_memory.log"):
     with open(log_file, "w") as f:
@@ -333,6 +354,11 @@ if __name__ == '__main__':
         print("正在由 PyCharm Run 按钮执行")
     else:
         print("正在由命令行（如 python main.py）执行")
+
+    print("=" * 50)
+    print(get_git_info())
+    print("=" * 50)
+
     # 你的训练代码
     total_start = time.time()
     # 创建ArgumentParser对象

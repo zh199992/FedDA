@@ -3,6 +3,14 @@
     "_type": "choice",
     "_value": ["finalFedDAnoda"]
   },
+  "train_ratio": {
+    "_type": "choice",
+    "_value": [0.01]
+  },
+  "git_version": {
+    "_type": "choice",
+    "_value": ["0404v1"]
+  },
   "algorithm": {
     "_type": "choice",
     "_value": ["FedDA"]
@@ -65,10 +73,10 @@
   },
   "EDS": {
     "_type": "choice",
-    "_value": ["false"]
+    "_value": ["false", "true"]
   },
   "enable_cloud_da": {
     "_type": "choice",
-    "_value": ["false"]
+    "_value": ["true", "false"]
   }
 }

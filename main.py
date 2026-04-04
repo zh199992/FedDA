@@ -269,7 +269,7 @@ def run(args):
     # monitor_thread.start()
 
     print(args.model)
-    if args.server_model is not None:
+    if getattr(args, 'server_model', None) is not None:
         print(args.server_model)
     print(args.TIMESTAMP)
     root_dir = find_project_root('FedDA')
@@ -366,7 +366,6 @@ if __name__ == '__main__':
     # 创建ArgumentParser对象
     parser = argparse.ArgumentParser()
     # general  添加参数
-    parser.add_argument("-git_version", "--git_version", type=str, default="localdebug")
     parser.add_argument("-device", "--device", type=str, default="cuda")
     parser.add_argument("-random_seed", "--random_seed", type=int, default=42)
     parser.add_argument('-d', "--directory", type=str, default="1120")#1021
@@ -440,6 +439,9 @@ if __name__ == '__main__':
         tuned_params = nni.get_next_parameter()
         for key, value in tuned_params.items():
             setattr(args, key, value)
+        if getattr(args, 'git_version', None) is None:
+            raise ValueError("git_version missing")
+
     else:
         args.local_epochs = 10
         args.server_epochs = 1

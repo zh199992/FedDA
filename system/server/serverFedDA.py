@@ -61,57 +61,10 @@ class serverDA(Server):
         # ----------------------------------------------------------------------
 
     def train(self):
-        init_round = self.global_rounds_init
-        for i in range(self.global_rounds_init+1):
-            print(f"Pretraining Round{i}")
-            print("\nEvaluate global model")
-            if self.args.fedeval:
-                self.evaluate(round=i)
-            else:
-                if i==0:
-                    self.evaluate(round=i)
-            if self.args.client_lr_decay:
-                for client in self.clients:
-                    client.learning_rate_scheduler = torch.optim.lr_scheduler.ExponentialLR(
-                        optimizer=client.optimizer,
-                        gamma=client.args.learning_rate_decay_gamma
-                    )
-
-            for client in self.clients:
-                client.global_round = i
-                client.train()
-            for client in self.clients:
-                client.get_feature()
-            self.receive_models_features()
-            if not self.args.fedeval:
-                self.evaluate(round=i+1)
-
-            if self.pretrain_early_stop:
-                # 假设 evaluate() 会把结果存到 self.rs_test_rmse 列表里
-                current_rmse = self.rs_test_rmse[-1] if len(self.rs_test_rmse) > 0 else 999
-                print(current_rmse,self.best_rmse)
-                if current_rmse < self.best_rmse-0.1:
-                    self.best_rmse = current_rmse
-                    self.counter = 0  # 重置计数器
-                    # 可选：保存当前最优模型
-                    # self.save_global_model(model_name="best_global_model.pth")
-                else:
-                    self.counter += 1
-                    print(f"[Early Stop] No improvement in accuracy. "
-                          f"Counter: {self.counter}/{self.patience}")
-
-                if self.counter >= self.patience:
-                    print("🔥🔥🔥 Early stopping triggered! Training halted due to no improvement.")
-                    print(f"Best rmse: {self.best_rmse:.4f} at round {i - self.counter}")
-                    self.early_stop_flag = True
-                    init_round=i
-                    break  # 终止训练循环
-
-#---------------------------------------------------------------------
-        self.aggregate_parameters()
+        self.pretrain()
 #----------------------------------------------------------------------
         self.counter=0
-        for i in range(init_round+1,self.global_rounds+1):  # +1是为了evaluate吗
+        for i in range(self.init_round+1,self.global_rounds+1):  # +1是为了evaluate吗
             print(f"Training Round{i}")
             if self.args.soft_update:
                 self.soft_update()
@@ -172,7 +125,7 @@ class serverDA(Server):
                     print("🔥🔥🔥 Early stopping triggered! Training halted due to no improvement.")
                     print(f"Best rmse: {self.best_rmse:.4f} at round {i - self.counter}")
                     self.early_stop_flag = True
-                    print(f"init round num{init_round} continue round num{i}")
+                    print(f"init round num{self.init_round} continue round num{i}")
                     break  # 终止训练循环
             # ========================================================================================================
             # === ✅ END OF EARLY STOPPING LOGIC =====================================================================
@@ -186,6 +139,55 @@ class serverDA(Server):
 
         # self.save_results()
         # self.save_global_model()
+    def pretrain(self):
+        self.init_round = self.global_rounds_init-1
+        for i in range(self.global_rounds_init):
+            print(f"Pretraining Round{i}")
+            print("\nEvaluate global model")
+            if self.args.fedeval:
+                self.evaluate(round=i)
+            else:
+                if i==0:
+                    self.evaluate(round=i)
+            if self.args.client_lr_decay:
+                for client in self.clients:
+                    client.learning_rate_scheduler = torch.optim.lr_scheduler.ExponentialLR(
+                        optimizer=client.optimizer,
+                        gamma=client.args.learning_rate_decay_gamma
+                    )
+
+            for client in self.clients:
+                client.global_round = i
+                client.train()
+            for client in self.clients:
+                client.get_feature()
+            self.receive_models_features()
+            if not self.args.fedeval:
+                self.evaluate(round=i+1)
+
+            if self.pretrain_early_stop:
+                # 假设 evaluate() 会把结果存到 self.rs_test_rmse 列表里
+                current_rmse = self.rs_test_rmse[-1] if len(self.rs_test_rmse) > 0 else 999
+                print(current_rmse,self.best_rmse)
+                if current_rmse < self.best_rmse-0.1:
+                    self.best_rmse = current_rmse
+                    self.counter = 0  # 重置计数器
+                    # 可选：保存当前最优模型
+                    # self.save_global_model(model_name="best_global_model.pth")
+                else:
+                    self.counter += 1
+                    print(f"[Early Stop] No improvement in accuracy. "
+                          f"Counter: {self.counter}/{self.patience}")
+
+                if self.counter >= self.patience:
+                    print("🔥🔥🔥 Early stopping triggered! Training halted due to no improvement.")
+                    print(f"Best rmse: {self.best_rmse:.4f} at round {i - self.counter}")
+                    self.early_stop_flag = True
+                    self.init_round=i
+                    break  # 终止训练循环
+        # ---------------------------------------------------------------------
+        if self.global_rounds_init>0:
+            self.aggregate_parameters()
 
     def cloud_da1(self,global_round):
         #1.得到标签 2.dataloader 3.训练 4.输出/画出结果

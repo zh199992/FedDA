@@ -1,7 +1,7 @@
 {
   "aim": {
     "_type": "choice",
-    "_value": ["FedDAlarge"]
+    "_value": ["FedDAlargereimplement"]
   },
   "train_ratio": {
     "_type": "choice",
@@ -9,7 +9,7 @@
   },
   "git_version": {
     "_type": "choice",
-    "_value": ["0404v1"]
+    "_value": ["0407v1"]
   },
   "algorithm": {
     "_type": "choice",
@@ -73,7 +73,7 @@
   },
   "EDS": {
     "_type": "choice",
-    "_value": ["false", "true"]
+    "_value": ["false"]
   },
   "enable_cloud_da": {
     "_type": "choice",

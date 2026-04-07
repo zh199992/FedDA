@@ -281,10 +281,11 @@ def run(args):
     else:
         exp_id = 'pc'
         trial_id = 'pc'
+
     config_path = os.path.join(root_dir, "logs", 'config',
-                            args.algorithm, exp_id, args.aim, trial_id + '-' + args.TIMESTAMP + '.json')
+                            args.aim, nni.get_experiment_id(), args.algorithm, trial_id + '-' + args.TIMESTAMP + '.json')
     graph_path = os.path.join(root_dir, "logs", 'graph',#这里示意一下，实际在serverbase-init 生效
-                              args.algorithm, exp_id, args.aim, trial_id + '-' + args.TIMESTAMP)
+                              args.aim, nni.get_experiment_id(), args.algorithm, trial_id + '-' + args.TIMESTAMP)
     index_dir = os.path.join(root_dir, "logs", ".experiment_index")
 
     os.makedirs(index_dir, exist_ok=True)

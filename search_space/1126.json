@@ -1,11 +1,11 @@
 {
   "aim": {
     "_type": "choice",
-    "_value": ["finalFedDAnoda"]
+    "_value": ["FedDAlarge"]
   },
   "train_ratio": {
     "_type": "choice",
-    "_value": [0.01]
+    "_value": [1.0]
   },
   "git_version": {
     "_type": "choice",
@@ -77,6 +77,6 @@
   },
   "enable_cloud_da": {
     "_type": "choice",
-    "_value": ["true", "false"]
+    "_value": ["true"]
   }
 }

@@ -63,6 +63,7 @@ class serverDA(Server):
     def train(self):
         init_round = self.global_rounds_init
         for i in range(self.global_rounds_init+1):
+            print(f"Pretraining Round{i}")
             print("\nEvaluate global model")
             if self.args.fedeval:
                 self.evaluate(round=i)
@@ -111,7 +112,7 @@ class serverDA(Server):
 #----------------------------------------------------------------------
         self.counter=0
         for i in range(init_round+1,self.global_rounds+1):  # +1是为了evaluate吗
-            print(f"Round{i}")
+            print(f"Training Round{i}")
             if self.args.soft_update:
                 self.soft_update()
             else:
@@ -143,8 +144,10 @@ class serverDA(Server):
                 optimizer=self.optimizer,
                 gamma=self.args.learning_rate_decay_gamma)
             if self.args.enable_cloud_da:
+                print(f"DEBUG: Executing cloud_da1 at round {i}")
                 self.cloud_da1(global_round=i)
-
+            else:
+                print("DEBUG: enable_cloud_da is FALSE, skipping...")
             if not self.args.fedeval:
                 self.evaluate(round=i+1)
 

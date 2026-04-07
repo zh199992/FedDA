@@ -122,11 +122,14 @@ class Server(object):
         #                                 "test/round loss 4": torch.sqrt(stats[0][3]).item()})
         best_avg_test_loss = (torch.tensor([torch.square(l)*n for l,n in zip(self.client_best_loss,stats[1])])).sum()/(torch.tensor(stats[1]).sum())
         best_avg_test_loss=torch.sqrt(best_avg_test_loss)
-
+        current_avg_test_loss = (torch.tensor([l*n for l,n in zip(stats[0],stats[1])])).sum()/(torch.tensor(stats[1]).sum())
+        current_avg_test_loss=torch.sqrt(current_avg_test_loss)
         # print("Averaged Train Loss: {:.4f}".format(train_loss))
         print("best avg test loss: {:.4f}".format(best_avg_test_loss))
-        self.writer.add_scalar("test/average loss", best_avg_test_loss, round)
-        nni.report_intermediate_result({"test/average loss": best_avg_test_loss.item()})
+        self.writer.add_scalar("test/best average loss", best_avg_test_loss, round)
+        nni.report_intermediate_result({"test/best average loss": best_avg_test_loss.item()})
+        print("current avg test loss: {:.4f}".format(current_avg_test_loss))
+        self.writer.add_scalar("test/current average loss", current_avg_test_loss, round)
         # nni.report_intermediate_result({"test/average loss": torch.sqrt(stats[0][0]).item()})
         # if self.test_avg_loss>torch.sqrt(total_test_loss).item():
         self.test_avg_loss=best_avg_test_loss.item()

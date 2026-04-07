@@ -189,7 +189,7 @@ def run(args):
         else:
             raise NotImplementedError
         server = serverAvg(args)
-    elif args.algorithm == "FedPer" or "SAWA":
+    elif args.algorithm == "FedPer" or args.algorithm == "SAWA":
         if model_str == "cnn1D":
             if args.EDS:
                 args.model = model.GHDR_FL_testeds(data_dim).to(args.device)
@@ -343,8 +343,8 @@ def run(args):
     #===================================================================开始训练
     server.train()
     if os.environ.get('PYCHARM_HOSTED') != '1':
-        # nni.report_final_result(server.test_avg_loss)  # 或者 nni.report_final_result(1 - val_loss)
-        nni.report_final_result(server.clients[0].best_target_test_loss.item())
+        nni.report_final_result(server.test_avg_loss)  # 或者 nni.report_final_result(1 - val_loss)
+        # nni.report_final_result(server.clients[0].best_target_test_loss.item())
     # 假设你有验证精度或损失指标
     # 例如 server.best_val_acc 或 server.best_val_loss
 

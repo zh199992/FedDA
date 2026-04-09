@@ -1,19 +1,23 @@
 {
   "aim": {
     "_type": "choice",
-    "_value": ["FedDAlargereimplement"]
+    "_value": ["smalldatacomparison"]
   },
   "train_ratio": {
     "_type": "choice",
-    "_value": [1.0]
+    "_value": [0.01]
   },
   "git_version": {
     "_type": "choice",
-    "_value": ["0407v1"]
+    "_value": ["0407v2"]
   },
   "algorithm": {
     "_type": "choice",
     "_value": ["FedDA"]
+  },
+  "sub_algorithm": {
+    "_type": "choice",
+    "_value": ["cifar10"]
   },
   "local_learning_rate": {
     "_type": "choice",
@@ -77,6 +81,6 @@
   },
   "enable_cloud_da": {
     "_type": "choice",
-    "_value": ["true"]
+    "_value": ["false"]
   }
 }

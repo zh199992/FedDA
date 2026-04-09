@@ -213,6 +213,7 @@ def run(args):
         else:
             raise NotImplementedError
         args.server_model=model.Cloud_GHDR(data_dim,args.window_size, args.num_clients,args.conv_init, args.linear_init).to(args.device)
+        # args.server_model=model.GHDR_FL(data_dim,args.conv_init,args.gru_init, args.linear_init).to(args.device)
         # args.server_model=model.Cloud_GHDR_new(data_dim,args.window_size, args.num_clients,args.conv_init, args.linear_init).to(args.device)
         server = serverDA(args)
     elif args.algorithm == "FedCADA":
@@ -281,11 +282,16 @@ def run(args):
     else:
         exp_id = 'pc'
         trial_id = 'pc'
-
-    config_path = os.path.join(root_dir, "logs", 'config',
-                            args.aim, nni.get_experiment_id(), args.algorithm, trial_id + '-' + args.TIMESTAMP + '.json')
-    graph_path = os.path.join(root_dir, "logs", 'graph',#这里示意一下，实际在serverbase-init 生效
-                              args.aim, nni.get_experiment_id(), args.algorithm, trial_id + '-' + args.TIMESTAMP)
+    if getattr(args, 'sub_algorithm', None) is  None:
+        config_path = os.path.join(root_dir, "logs", 'config',
+                            args.aim, exp_id, args.algorithm, trial_id + '-' + args.TIMESTAMP + '.json')
+        graph_path = os.path.join(root_dir, "logs", 'graph',#这里示意一下，实际在serverbase-init 生效
+                              args.aim, exp_id, args.algorithm, trial_id + '-' + args.TIMESTAMP)
+    else:
+        config_path = os.path.join(root_dir, "logs", 'config',
+                            args.aim, exp_id, args.sub_algorithm, trial_id + '-' + args.TIMESTAMP + '.json')
+        graph_path = os.path.join(root_dir, "logs", 'graph',#这里示意一下，实际在serverbase-init 生效
+                              args.aim, exp_id, args.sub_algorithm, trial_id + '-' + args.TIMESTAMP)
     index_dir = os.path.join(root_dir, "logs", ".experiment_index")
 
     os.makedirs(index_dir, exist_ok=True)
@@ -313,8 +319,9 @@ def run(args):
         index_data["args"] = {}
 
     # 添加新的路径（如果不存在）
-    current_config_dir = os.path.join(root_dir, "logs", 'config', args.aim, args.algorithm, exp_id)
-    current_graph_dir = os.path.join(root_dir, "logs", 'graph', args.aim, args.algorithm, exp_id)
+
+    current_config_dir = os.path.join(root_dir, "logs", 'config', args.aim, exp_id, args.algorithm)
+    current_graph_dir = os.path.join(root_dir, "logs", 'graph', args.aim, exp_id, args.algorithm)
 
     if current_config_dir not in index_data["config_paths"]:
         index_data["config_paths"].append(current_config_dir)

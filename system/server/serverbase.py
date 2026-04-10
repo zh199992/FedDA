@@ -46,7 +46,12 @@ class Server(object):
         root_dir = find_project_root('FedDA')
         #第一种路径  先分config和graph，再接试验任务。 第二种路径，先按任务分类，再config和graph
         # directory = 'test2/config/'  # 比画图多一个/config/
-        self.graph_path = os.path.join(root_dir, "logs", 'graph', args.aim, nni.get_experiment_id(), args.algorithm, nni.get_trial_id()+'-'+args.TIMESTAMP)
+        if getattr(args, 'sub_algorithm', None) is None:
+            self.graph_path = os.path.join(root_dir, "logs", 'graph',  # 这里示意一下，实际在serverbase-init 生效
+                                          args.aim, nni.get_experiment_id(), args.algorithm, nni.get_trial_id() + '-' + args.TIMESTAMP)
+        else:
+            self.graph_path = os.path.join(root_dir, "logs", 'graph',  # 这里示意一下，实际在serverbase-init 生效
+                                          args.aim, nni.get_experiment_id(), args.sub_algorithm, nni.get_trial_id() + '-' + args.TIMESTAMP)
         # self.graph_path=root_dir+'/logs/0730/graph/' + self.algorithm + '/'+args.aim+'/'+args.TIMESTAMP
         self.writer = tb.SummaryWriter(self.graph_path)  # tensorboard文件存储的文件夹
 

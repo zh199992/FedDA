@@ -9,7 +9,7 @@
   },
   "git_version": {
     "_type": "choice",
-    "_value": ["0407v2"]
+    "_value": ["0409v1"]
   },
   "algorithm": {
     "_type": "choice",
@@ -17,7 +17,7 @@
   },
   "sub_algorithm": {
     "_type": "choice",
-    "_value": ["cifar10"]
+    "_value": ["FedAvg"]
   },
   "local_learning_rate": {
     "_type": "choice",
@@ -49,7 +49,7 @@
   },
   "DA_loss": {
     "_type": "choice",
-    "_value": ["adv+mmd"]
+    "_value": ["adv+mmd","mmd"]
   },
   "gamma": {
     "_type": "choice",
@@ -75,9 +75,13 @@
     "_type": "choice",
     "_value": ["true"]
   },
+  "P_FedAvg": {
+    "_type": "choice",
+    "_value": ["true"]
+  },
   "EDS": {
     "_type": "choice",
-    "_value": ["false"]
+    "_value": ["false","true"]
   },
   "enable_cloud_da": {
     "_type": "choice",

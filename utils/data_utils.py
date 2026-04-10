@@ -342,9 +342,21 @@ def compute_rul_silhouette_score(features, rul_labels, n_bins=10):
         return -1.0
 
 
-def plot_all_clients_features(uploaded_middle_features, uploaded_labels, titles=None, save_path="all_clients_features.png", figsize=(12, 10)):
+def plot_all_clients_features(uploaded_middle_features, uploaded_labels, titles=None,
+                              save_path="all_clients_features.png", figsize=(12, 10)):
     n_clients = len(uploaded_middle_features)
     assert n_clients <= 4, "最多支持4个客户端"
+
+    # 检查数据是否为空
+    if n_clients == 0:
+        print("⚠️ 警告: uploaded_middle_features 为空，无法绘图")
+        return []
+
+    for i, (features, labels) in enumerate(zip(uploaded_middle_features, uploaded_labels)):
+        if features.numel() == 0 or labels.numel() == 0:
+            print(f"⚠️ 警告: Client {i + 1} 的特征或标签为空")
+            return []
+
     if titles is None:
         titles = [f"Client {i + 1}" for i in range(n_clients)]
 
@@ -361,7 +373,7 @@ def plot_all_clients_features(uploaded_middle_features, uploaded_labels, titles=
         # 计算聚类分数
         score = compute_rul_silhouette_score(features, rul_labels, n_bins=10)
         all_scores.append(score)
-        print(f"✅ Client {i+1} RUL-based Silhouette Score: {score:.4f}")
+        print(f"✅ Client {i + 1} RUL-based Silhouette Score: {score:.4f}")
 
         # 降维（不绘图）
         embedding = visualize_features_with_rul(features, rul_labels, method='auto')  # 现在这个函数只降维！
@@ -383,14 +395,25 @@ def plot_all_clients_features(uploaded_middle_features, uploaded_labels, titles=
         axes[j].set_visible(False)
 
     plt.tight_layout()
-    plt.show()
+
     # 确保目录存在
     import os
-    os.makedirs(os.path.dirname(save_path) if os.path.dirname(save_path) else '.', exist_ok=True)
+    save_dir = os.path.dirname(save_path)
+    if save_dir:
+        os.makedirs(save_dir, exist_ok=True)
+
+    # ✅ 关键修复：先保存，再显示（如果需要显示的话）
     plt.savefig(save_path, dpi=150, bbox_inches='tight')
+    print(f"✅ 所有客户端特征图已保存至: {save_path}")
+
+    # 可选：只在交互式环境中显示
+    import matplotlib
+    if matplotlib.get_backend().lower() not in ['agg', 'pdf', 'svg']:
+        plt.show()
+
     plt.close()
-    print(f"✅ 所有客户端特征图已保存至: {save_path}")#阻塞了 没到这一步
     return all_scores
+
 
 def regresssion_feature(features_tensor, rul_tensor):
     print("\n🎨 正在运行可视化函数...")

@@ -132,7 +132,10 @@ class serverDA(Server):
             # ========================================================================================================
 
         # print(plot_all_clients_features(self.uploaded_middle_features, self.uploaded_labels))
-        scores = plot_all_clients_features(self.uploaded_middle_features, self.uploaded_labels)
+        import os
+        feature_plot_path = os.path.join(self.graph_path, "final_clients_features.png")
+        scores = plot_all_clients_features(self.uploaded_middle_features, self.uploaded_labels,
+                                           save_path=feature_plot_path)
         print(scores)
         # print("\nBest accuracy.")
         # print(max(self.rs_test_rmse))

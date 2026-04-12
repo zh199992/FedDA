@@ -306,10 +306,17 @@ class serverDA(Server):
         if self.args.F_FedAvg:
             for param in self.global_model.F.parameters():     #discriminator不能清零
                 param.data.zero_()
-        if self.args.EDI_FedAvg:
+        if self.args.EDI_FedAvg and not self.args.EDS:
             for param in self.global_model.LHDR.parameters():     #discriminator不能清零
                 param.data.zero_()
-
+        elif self.args.EDS_FedAvg and self.args.EDS:
+            for param in self.global_model.EDS.parameters():     #discriminator不能清零
+                param.data.zero_()
+            for param in self.global_model.LHDR.parameters():     #discriminator不能清零
+                param.data.zero_()
+        if self.args.P_FedAvg:
+            for param in self.global_model.unique.parameters():     #discriminator不能清零
+                param.data.zero_()
         for w, client_model in zip(self.uploaded_weights, self.uploaded_models):
             self.add_parameters(w, client_model)
 
@@ -317,8 +324,17 @@ class serverDA(Server):
         if self.args.F_FedAvg:
             for server_param, client_param in zip(self.global_model.F.parameters(), client_model.F.parameters()):
                 server_param.data += client_param.data.clone() * w
-        if self.args.EDI_FedAvg:
+        if self.args.EDI_FedAvg and not self.args.EDS:
             for server_param, client_param in zip(self.global_model.LHDR.parameters(), client_model.LHDR.parameters()):
+                server_param.data += client_param.data.clone() * w
+        elif self.args.EDS_FedAvg and self.args.EDS:
+            for server_param, client_param in zip(self.global_model.LHDR.parameters(), client_model.LHDR.parameters()):
+                server_param.data += client_param.data.clone() * w
+            for server_param, client_param in zip(self.global_model.EDS.parameters(), client_model.EDS.parameters()):
+                server_param.data += client_param.data.clone() * w
+        if self.args.P_FedAvg:
+            for server_param, client_param in zip(self.global_model.unique.parameters(),
+                                                      client_model.unique.parameters()):
                 server_param.data += client_param.data.clone() * w
 
     def soft_update(self):

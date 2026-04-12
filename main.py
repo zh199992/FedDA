@@ -207,12 +207,16 @@ def run(args):
         if model_str == "cnn1D":
             if args.EDS:
                 args.model = model.GHDR_FL_testeds(data_dim,args.conv_init,args.gru_init, args.linear_init).to(args.device)
+                args.server_model = model.Cloud_GHDR_testeds(data_dim, args.window_size, args.num_clients, args.conv_init,
+                                                     args.linear_init).to(args.device)
             else:
                 args.model = model.GHDR_FL(data_dim,args.conv_init,args.gru_init, args.linear_init).to(args.device)
+                args.server_model = model.Cloud_GHDR(data_dim, args.window_size, args.num_clients, args.conv_init,
+                                                     args.linear_init).to(args.device)
+
                 # args.model = model.GHDR_FL_new(data_dim,args.conv_init,args.gru_init, args.linear_init).to(args.device)
         else:
             raise NotImplementedError
-        args.server_model=model.Cloud_GHDR(data_dim,args.window_size, args.num_clients,args.conv_init, args.linear_init).to(args.device)
         # args.server_model=model.GHDR_FL(data_dim,args.conv_init,args.gru_init, args.linear_init).to(args.device)
         # args.server_model=model.Cloud_GHDR_new(data_dim,args.window_size, args.num_clients,args.conv_init, args.linear_init).to(args.device)
         server = serverDA(args)

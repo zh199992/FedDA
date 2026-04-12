@@ -119,20 +119,32 @@ def read_client_data_iid(dataset, split_sizes, start, idx, args,  is_train=True)
 
         return test_set
 
-def read_client_data_centralized(dataset, args,  is_train=True):  #调用read_data   输出元组列表
+def read_client_data_centralized(dataset, args,  is_train=True, train_ratio=1.0):  #调用read_data   输出元组列表
     current_directory = os.getcwd()
     root_dir = find_project_root('FedDA')
     if is_train:
         train_data_dir = os.path.join(root_dir, 'data', dataset, 'processed',args.dp)+'/'
         train_feature=[]
         train_label=[]
-        for i in range(1,5):
-            train_feature.append(torch.load(train_data_dir + "train_FD00" +str(i)+"feature"+ str(args.window_size)+'.pt'))
-            train_label.append(torch.load(train_data_dir + "train_FD00" +str(i)+"label"+ str(args.window_size)+'.pt'))
+        for i in range(1, 5):
+            feature = torch.load(train_data_dir + "train_FD00" + str(i) + "feature" + str(args.window_size) + '.pt')
+            label = torch.load(train_data_dir + "train_FD00" + str(i) + "label" + str(args.window_size) + '.pt')
 
-        train_feature=torch.cat(train_feature,dim=0)
-        train_label=torch.cat(train_label,dim=0)
+            # 根据 train_ratio 控制数据量
+            if train_ratio < 1.0:
+                num_samples = int(len(feature) * train_ratio)
+                feature = feature[:num_samples]
+                label = label[:num_samples]
+                print(f"Client {i}: 使用 {train_ratio * 100:.0f}% 训练数据 ({num_samples}/{len(feature)})")
+
+            train_feature.append(feature)
+            train_label.append(label)
+
+        train_feature = torch.cat(train_feature, dim=0)
+        train_label = torch.cat(train_label, dim=0)
         train_set = MyDataset(train_feature, train_label)
+
+        print(f"中心化训练集总大小: {len(train_set)} 样本 (train_ratio={train_ratio})")
 
         return train_set
 
@@ -407,11 +419,11 @@ def plot_all_clients_features(uploaded_middle_features, uploaded_labels, titles=
     print(f"✅ 所有客户端特征图已保存至: {save_path}")
 
     # 可选：只在交互式环境中显示
-    import matplotlib
-    if matplotlib.get_backend().lower() not in ['agg', 'pdf', 'svg']:
-        plt.show()
-
-    plt.close()
+    # import matplotlib
+    # if matplotlib.get_backend().lower() not in ['agg', 'pdf', 'svg']:
+    #     plt.show()
+    #
+    # plt.close()
     return all_scores
 
 

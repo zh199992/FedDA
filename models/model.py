@@ -128,7 +128,9 @@ class GHDR_FL(nn.Module):#卷积层 (nn.Conv2d)：默认使用Kaiming均匀分�
         shallow=self.F(input)
         middle=self.LHDR(shallow)
         middle=middle.squeeze(1)
+        print(middle.shape)
         output=self.unique(middle)
+        print(middle.shape)
         return output, shallow, middle
 
 class GHDR_FL_new(nn.Module):#
@@ -258,15 +260,18 @@ class GHDR_FL_testeds(nn.Module):
             conv_block(self.filter_num, self.filter_num, kernel_size=(self.filter_length, 1)),
             conv_block(self.filter_num, 1, kernel_size=(3, 1))
         )
-        self.unique=nn.Sequential(
+        self.unique = nn.Sequential(
             nn.GRU(input_size=2*self.input_size,hidden_size=50,num_layers=1,batch_first=True),
             LambdaLayer(lambda x: x[0][:, -1, :]),
-            nn.Linear(50,700),
+            nn.Dropout(0.5),
+            nn.Linear(50, 700),
             # nn.Tanh(),
             Mish(),
-            nn.Linear(700,200),
+            nn.Dropout(0.5),
+            nn.Linear(700, 200),
             # nn.Tanh(),
             Mish(),
+            nn.Dropout(0.5),
             nn.Linear(200, 1),
         )
         conv_initializers = {
@@ -368,7 +373,7 @@ class Cloud_GHDR(nn.Module):
             nn.Linear(200, self.client_number)
         )
         self.unique=nn.Sequential(
-            nn.GRU(input_size=2*self.input_size,hidden_size=50,num_layers=1,batch_first=True),
+            nn.GRU(input_size=self.input_size,hidden_size=50,num_layers=1,batch_first=True),
             LambdaLayer(lambda x: x[0][:, -1, :]),
             nn.Linear(50,700),
             # nn.Tanh(),
@@ -417,6 +422,96 @@ class Cloud_GHDR(nn.Module):
 
         return self.discriminator(feature_reversed), feature
 
+class Cloud_GHDR_testeds(nn.Module):
+    def __init__(self,input_size, window_size, client_number, conv_init='kaiming_uniform',  linear_init='xavier_uniform'):
+        super(Cloud_GHDR, self).__init__()
+        self.client_number=client_number
+        self.input_size=input_size
+        self.filter_num=10
+        self.filter_length=10
+        self.F=nn.Sequential(    #只用来保存
+            conv_block(1,self.filter_num,kernel_size=(self.filter_length,1)),
+            conv_block(self.filter_num,self.filter_num,kernel_size=(self.filter_length,1)),
+            conv_block(self.filter_num, self.filter_num, kernel_size=(self.filter_length, 1))
+        )
+
+        self.LHDR=nn.Sequential(
+            conv_block(self.filter_num, self.filter_num, kernel_size=(self.filter_length, 1)),
+            conv_block(self.filter_num, self.filter_num, kernel_size=(self.filter_length, 1)),
+            conv_block(self.filter_num, 1, kernel_size=(3, 1)),
+        )
+        self.E_DS = nn.Sequential(
+            conv_block(self.filter_num, self.filter_num, kernel_size=(self.filter_length, 1)),
+            conv_block(self.filter_num, self.filter_num, kernel_size=(self.filter_length, 1)),
+            conv_block(self.filter_num, 1, kernel_size=(3, 1))
+        )
+        # self.flat=nn.Flatten()
+        # self.discriminator = nn.Sequential(
+        #     # nn.Flatten(),
+        #     nn.Linear(input_size*window_size, 700),
+        #     nn.ReLU(),
+        #     nn.Linear(700, 200),
+        #     nn.ReLU(),
+        #     nn.Linear(200, self.client_number)
+        # )
+        self.discriminator = nn.Sequential(
+            # nn.Flatten(),
+                            nn.Linear(window_size, 700),
+            # nn.Linear(input_size, 64),
+            nn.ReLU(),
+            nn.Linear(700, 200),
+            nn.ReLU(),
+            nn.Linear(200, self.client_number)
+        )
+        self.unique=nn.Sequential(
+            nn.GRU(input_size=2*self.input_size,hidden_size=50,num_layers=1,batch_first=True),
+            LambdaLayer(lambda x: x[0][:, -1, :]),
+            nn.Linear(50,700),
+            # nn.Tanh(),
+            Mish(),
+            nn.Linear(700,200),
+            # nn.Tanh(),
+            Mish(),
+            nn.Linear(200, 1),
+        )
+        conv_initializers = {
+            'xavier_uniform': init.xavier_uniform_,
+            'xavier_normal': init.xavier_normal_,
+            'kaiming_uniform': partial(init.kaiming_uniform_, mode='fan_in', nonlinearity='leaky_relu'),
+            'kaiming_normal': partial(init.kaiming_normal_, mode='fan_in', nonlinearity='leaky_relu'),
+            'normal': partial(init.normal_, mean=0.0, std=0.02),
+            'uniform': partial(init.uniform_, a=-0.1, b=0.1)
+        }
+
+        if conv_init in conv_initializers:
+            for module in self.LHDR.modules():
+                if isinstance(module, nn.Conv2d):
+                    conv_initializers[conv_init](module.weight)
+        # Initialize Linear layers
+        linear_initializers = {
+            'xavier_uniform': init.xavier_uniform_,
+            'xavier_normal': init.xavier_normal_,
+            'kaiming_uniform': partial(init.kaiming_uniform_, mode='fan_in', nonlinearity='leaky_relu'),
+            'kaiming_normal': partial(init.kaiming_normal_, mode='fan_in', nonlinearity='leaky_relu'),
+            'normal': partial(init.normal_, mean=0.0, std=0.02),
+            'uniform': partial(init.uniform_, a=-0.1, b=0.1)
+        }
+
+        if linear_init in linear_initializers:
+            for module in self.discriminator.modules():
+                if isinstance(module, nn.Linear):
+                    linear_initializers[linear_init](module.weight)
+                    init.constant_(module.bias, 0)
+    def forward(self, x, constant=1):
+        feature=self.LHDR(x)
+        # feature=self.flat(feature)
+
+        feature=feature.squeeze(1)
+        # feature = torch.mean(feature, dim=1)#时间维度平均
+        feature = torch.mean(feature, dim=2)#特征维度平均
+        feature_reversed = GradReverse.grad_reverse(feature, constant)
+
+        return self.discriminator(feature_reversed), feature
 class Cloud_GHDR_new(nn.Module):
     def __init__(self,input_size, window_size, client_number, conv_init='kaiming_uniform',  linear_init='xavier_uniform'):
         super(Cloud_GHDR_new, self).__init__()

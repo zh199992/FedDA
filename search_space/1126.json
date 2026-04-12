@@ -9,7 +9,7 @@
   },
   "git_version": {
     "_type": "choice",
-    "_value": ["0409v1"]
+    "_value": ["0410v1"]
   },
   "algorithm": {
     "_type": "choice",
@@ -18,6 +18,10 @@
   "sub_algorithm": {
     "_type": "choice",
     "_value": ["FedAvg"]
+  },
+  "fedeval": {
+    "_type": "choice",
+    "_value": ["false","true"]
   },
   "local_learning_rate": {
     "_type": "choice",

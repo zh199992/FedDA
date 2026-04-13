@@ -208,7 +208,8 @@ class serverDA(Server):
                 self.writer.add_scalar('train/server_mmd', mmd_loss, global_step + i)
                 self.writer.add_scalar('train/server_adv', adv_loss, global_step + i)
                 if self.DA_loss=='mmd':
-                    total_loss = mmd_loss
+                    # total_loss = mmd_loss
+                    total_loss = (1-self.gamma)*mmd_loss
                     # adv_loss = self.advloss(domain_preds, domain_labels)
                     # mmd_loss = compute_mmd_loss(feature_DI, batch_domains)
                     # self.writer.add_scalar('train/server_mmd', mmd_loss, global_step + i)
@@ -217,7 +218,8 @@ class serverDA(Server):
                     # mmd_loss.backward()
                     # self.optimizer.step()
                 elif self.DA_loss=='adv':
-                    total_loss = adv_loss
+                    # total_loss = adv_loss
+                    total_loss = self.gamma*adv_loss
                     # adv_loss = self.advloss(domain_preds, domain_labels)
                     # mmd_loss = compute_mmd_loss(feature_DI, batch_domains)
                     # self.writer.add_scalar('train/server_mmd', mmd_loss, global_step + i)
@@ -309,8 +311,8 @@ class serverDA(Server):
         if self.args.EDI_FedAvg and not self.args.EDS:
             for param in self.global_model.LHDR.parameters():     #discriminator不能清零
                 param.data.zero_()
-        elif self.args.EDS_FedAvg and self.args.EDS:
-            for param in self.global_model.EDS.parameters():     #discriminator不能清零
+        elif self.args.EDI_FedAvg and self.args.EDS:
+            for param in self.global_model.E_DS.parameters():     #discriminator不能清零
                 param.data.zero_()
             for param in self.global_model.LHDR.parameters():     #discriminator不能清零
                 param.data.zero_()
@@ -327,10 +329,10 @@ class serverDA(Server):
         if self.args.EDI_FedAvg and not self.args.EDS:
             for server_param, client_param in zip(self.global_model.LHDR.parameters(), client_model.LHDR.parameters()):
                 server_param.data += client_param.data.clone() * w
-        elif self.args.EDS_FedAvg and self.args.EDS:
+        elif self.args.EDI_FedAvg and self.args.EDS:
             for server_param, client_param in zip(self.global_model.LHDR.parameters(), client_model.LHDR.parameters()):
                 server_param.data += client_param.data.clone() * w
-            for server_param, client_param in zip(self.global_model.EDS.parameters(), client_model.EDS.parameters()):
+            for server_param, client_param in zip(self.global_model.E_DS.parameters(), client_model.E_DS.parameters()):
                 server_param.data += client_param.data.clone() * w
         if self.args.P_FedAvg:
             for server_param, client_param in zip(self.global_model.unique.parameters(),

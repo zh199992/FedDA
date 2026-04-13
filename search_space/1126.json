@@ -5,11 +5,11 @@
   },
   "train_ratio": {
     "_type": "choice",
-    "_value": [0.01]
+    "_value": [0.1, 0.01]
   },
   "git_version": {
     "_type": "choice",
-    "_value": ["0410v1"]
+    "_value": ["0413v1"]
   },
   "algorithm": {
     "_type": "choice",
@@ -17,11 +17,11 @@
   },
   "sub_algorithm": {
     "_type": "choice",
-    "_value": ["FedAvg"]
+    "_value": ["individual", "centralized"]
   },
   "fedeval": {
     "_type": "choice",
-    "_value": ["false","true"]
+    "_value": ["false"]
   },
   "local_learning_rate": {
     "_type": "choice",
@@ -53,7 +53,7 @@
   },
   "DA_loss": {
     "_type": "choice",
-    "_value": ["adv+mmd","mmd"]
+    "_value": ["adv+mmd"]
   },
   "gamma": {
     "_type": "choice",
@@ -73,22 +73,22 @@
   },
   "F_FedAvg": {
     "_type": "choice",
-    "_value": ["true"]
+    "_value": ["false"]
   },
   "EDI_FedAvg": {
     "_type": "choice",
-    "_value": ["true"]
+    "_value": ["false"]
   },
   "P_FedAvg": {
     "_type": "choice",
-    "_value": ["true"]
+    "_value": ["false"]
   },
   "EDS": {
     "_type": "choice",
-    "_value": ["false","true"]
+    "_value": ["false"]
   },
   "enable_cloud_da": {
     "_type": "choice",
-    "_value": ["false"]
+    "_value": ["false", "true"]
   }
 }

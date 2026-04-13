@@ -424,7 +424,7 @@ class Cloud_GHDR(nn.Module):
 
 class Cloud_GHDR_testeds(nn.Module):
     def __init__(self,input_size, window_size, client_number, conv_init='kaiming_uniform',  linear_init='xavier_uniform'):
-        super(Cloud_GHDR, self).__init__()
+        super(Cloud_GHDR_testeds, self).__init__()
         self.client_number=client_number
         self.input_size=input_size
         self.filter_num=10

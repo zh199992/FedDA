@@ -72,11 +72,12 @@ class Client(object):
     def load_train_data(self, batch_size=None):
         if batch_size == None:
             batch_size = self.batch_size
-        if getattr(self.args, 'sub_algorithm', None) is None:
-            train_data = read_client_data(self.dataset, self.id, self.args, is_train=True,
-                                      train_ratio=self.args.train_ratio)
-        else:
+        if getattr(self.args, 'sub_algorithm', None) == 'centralized':
+            print("centralized train_set")
             train_data = read_client_data_centralized(self.dataset, self.args, is_train=True,
+                                                      train_ratio=self.args.train_ratio)
+        else:
+            train_data = read_client_data(self.dataset, self.id, self.args, is_train=True,
                                       train_ratio=self.args.train_ratio)
         return DataLoader(train_data, batch_size, drop_last=False, shuffle=True)
 

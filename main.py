@@ -412,7 +412,11 @@ if __name__ == '__main__':
     #                     help="Multiple update steps in one local epoch.")
     parser.add_argument('-le', "--local_epochs", type=int, default=20,
                         help="Multiple update steps in one local epoch.")
-    parser.add_argument('-le2', "--local_epochs2", type=int, default=100, help = "只有GHDR用")
+    parser.add_argument('-le1', "--local_epochs_client1", type=int, default=None)
+    parser.add_argument('-le2', "--local_epochs_client2", type=int, default=None)
+    parser.add_argument('-le3', "--local_epochs_client3", type=int, default=None)
+    parser.add_argument('-le4', "--local_epochs_client4", type=int, default=None)
+    # parser.add_argument('-le2', "--local_epochs2", type=int, default=100, help = "只有GHDR用")
     parser.add_argument('-se', "--server_epochs", type=int, default=10)
     # parser.add_argument('-clr', "--local_learning_rate", type=str, default='0.001,0.001')
     # parser.add_argument('-slr', "--server_learning_rate", type=str, default='0.001,0.001')
@@ -484,6 +488,20 @@ if __name__ == '__main__':
     if type(args.fedeval)==str:
         # args.P_FedAvg = bool(strtobool(args.P_FedAvg))
         args.fedeval = bool(strtobool(args.fedeval))
+    if args.local_epochs_client1 is None:
+        args.local_epochs_client1 = args.local_epochs
+    if args.local_epochs_client2 is None:
+        args.local_epochs_client2 = args.local_epochs
+    if args.local_epochs_client3 is None:
+        args.local_epochs_client3 = args.local_epochs
+    if args.local_epochs_client4 is None:
+        args.local_epochs_client4 = args.local_epochs
+    args.local_epochs_list = [
+        args.local_epochs_client1,
+        args.local_epochs_client2,
+        args.local_epochs_client3,
+        args.local_epochs_client4
+    ]
 
     seed_torch(args.random_seed)
     print("=" * 50) #确认config

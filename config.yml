@@ -1,4 +1,4 @@
-experimentName: smalldatacomparison
+experimentName: fullablation
 trialCommand: python main.py
 trialCodeDirectory: .
 trialConcurrency: 1 #导致一个显卡跑n个实验

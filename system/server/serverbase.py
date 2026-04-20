@@ -13,6 +13,49 @@ from utils.root import find_project_root
 import numpy as np
 import torch
 import matplotlib.pyplot as plt
+import functools
+import inspect
+import os
+
+
+def monitor_gpu_memory(func):
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs):
+        if not torch.cuda.is_available():
+            return func(*args, **kwargs)
+
+        torch.cuda.empty_cache()
+
+        before_alloc = torch.cuda.memory_allocated() / 1024 ** 2
+        before_max = torch.cuda.max_memory_allocated() / 1024 ** 2
+
+        # 获取函数所属的文件路径和类名（如果是方法）
+        func_file = inspect.getfile(func)
+        func_filename = os.path.basename(func_file)
+
+        # 判断是否是类方法，如果是则获取类名
+        if args and hasattr(args[0], '__class__'):
+            class_name = args[0].__class__.__name__
+            func_location = f"{func_filename}::{class_name}.{func.__name__}"
+        else:
+            func_location = f"{func_filename}::{func.__name__}"
+
+        print(f"\n🚀 [显存监控] 进入函数: {func_location}")
+        print(f"   起始占用: {before_alloc:.2f} MB")
+
+        result = func(*args, **kwargs)
+
+        after_alloc = torch.cuda.memory_allocated() / 1024 ** 2
+        after_max = torch.cuda.max_memory_allocated() / 1024 ** 2
+
+        print(f"✅ [显存监控] 离开函数: {func_location}")
+        print(f"   最终占用: {after_alloc:.2f} MB (净增: {after_alloc - before_alloc:.2f} MB)")
+        print(f"   过程峰值: {after_max:.2f} MB")
+        print("-" * 30)
+
+        return result
+
+    return wrapper
 
 class Server(object):
     def __init__(self, args):
@@ -66,6 +109,8 @@ class Server(object):
         self.counter = 0                                             # 计数器
         self.early_stop_flag = False                                 # 是否触发早停
         # ----------------------------------------------------------------------
+
+    @monitor_gpu_memory
     def set_clients(self, clientObj):#设置了就有n个client作为server的属性
         for i in range(1,1+self.num_clients):
             train_set = read_client_data(self.dataset, i,self.args, is_train=True)
@@ -78,14 +123,14 @@ class Server(object):
 
         return self.clients
 
+    @monitor_gpu_memory
     def send_models(self):
         assert (len(self.clients) > 0)
 
         for client in self.clients:
             client.set_parameters(self.global_model)
 
-
-
+    @monitor_gpu_memory
     def receive_models_features(self):
         # 断言语句 不满足会触发AssertionError
         assert (len(self.clients) > 0)
@@ -111,6 +156,7 @@ class Server(object):
         for i, w in enumerate(self.uploaded_weights):
             self.uploaded_weights[i] = w / tot_samples
 
+    @monitor_gpu_memory
     def evaluate(self, round):
         stats = self.test_metrics()
         # total_test_loss = (torch.tensor([l*n for l,n in zip(stats[0],stats[1])])).sum()/(torch.tensor(stats[1]).sum())
@@ -144,6 +190,7 @@ class Server(object):
         # print("Std Test loss: {:.4f}".format(np.std(accs)))
         # print("Std Test score: {:.4f}".format(np.std(aucs)))
 
+    @monitor_gpu_memory
     def test_metrics(self):
         loss_list=[]
         num_samples = []
@@ -156,6 +203,7 @@ class Server(object):
 
         return loss_list, num_samples,  score_list
 
+    @monitor_gpu_memory
     def train_metrics(self):
         if self.eval_new_clients and self.num_new_clients > 0:
             return [0], [1], [0]
@@ -171,6 +219,8 @@ class Server(object):
 
         return ids, num_samples, losses
 
+
+    @monitor_gpu_memory
     def aggregate_parameters(self):
         assert (len(self.uploaded_models) > 0)
 
@@ -180,12 +230,14 @@ class Server(object):
 
         for w, client_model in zip(self.uploaded_weights, self.uploaded_models):
             self.add_parameters(w, client_model)
+    @monitor_gpu_memory
     def add_parameters(self, w, client_model):
         for server_param, client_param in zip(self.global_model.parameters(), client_model.parameters()):
             server_param.data += client_param.data.clone() * w
 
 
 
+    @monitor_gpu_memory
     def RUL_CE(self, n_bins=20, max_rul=125, normalize=True, plot_hist=True):
         rul_ce = []
         all_labels_list = []  # 用于绘图

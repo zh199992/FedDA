@@ -88,6 +88,7 @@ class Client(object):
         test_data = read_client_data(self.dataset, self.id, self.args, is_train=False)
         return DataLoader(test_data, batch_size, drop_last=False, shuffle=True)
 
+
     def test_metrics(self):
         # test_data = read_client_data(self.dataset, self.id, self.args, is_train=False)
         # x,y=test_data.data_tensor,test_data.target_tensor

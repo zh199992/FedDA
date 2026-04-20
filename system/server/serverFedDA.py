@@ -8,6 +8,48 @@ from utils.data_utils import CombinedDataset, MyDataset, visualize_features_with
 from utils.mmdloss import mmd_rbf
 import adamod
 import nni
+import functools
+import inspect
+import os
+
+def monitor_gpu_memory(func):
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs):
+        if not torch.cuda.is_available():
+            return func(*args, **kwargs)
+
+        torch.cuda.empty_cache()
+
+        before_alloc = torch.cuda.memory_allocated() / 1024 ** 2
+        before_max = torch.cuda.max_memory_allocated() / 1024 ** 2
+
+        # 获取函数所属的文件路径和类名（如果是方法）
+        func_file = inspect.getfile(func)
+        func_filename = os.path.basename(func_file)
+
+        # 判断是否是类方法，如果是则获取类名
+        if args and hasattr(args[0], '__class__'):
+            class_name = args[0].__class__.__name__
+            func_location = f"{func_filename}::{class_name}.{func.__name__}"
+        else:
+            func_location = f"{func_filename}::{func.__name__}"
+
+        print(f"\n🚀 [显存监控] 进入函数: {func_location}")
+        print(f"   起始占用: {before_alloc:.2f} MB")
+
+        result = func(*args, **kwargs)
+
+        after_alloc = torch.cuda.memory_allocated() / 1024 ** 2
+        after_max = torch.cuda.max_memory_allocated() / 1024 ** 2
+
+        print(f"✅ [显存监控] 离开函数: {func_location}")
+        print(f"   最终占用: {after_alloc:.2f} MB (净增: {after_alloc - before_alloc:.2f} MB)")
+        print(f"   过程峰值: {after_max:.2f} MB")
+        print("-" * 30)
+
+        return result
+
+    return wrapper
 
 #改变1 不用receive_models改用receive_models_and_features 2 cloudda 3重写aggregate_parameters和add_parameters 和lr 4.云端的optimizer和dataset  global model也得改
 #首先，我有四个client的特征，要减小他们四个被LHDR处理后的距离
@@ -60,6 +102,7 @@ class serverDA(Server):
         self.early_stop_flag = False                                 # 是否触发早停
         # ----------------------------------------------------------------------
 
+    @monitor_gpu_memory
     def train(self):
         self.pretrain()
 #----------------------------------------------------------------------
@@ -142,8 +185,10 @@ class serverDA(Server):
 
         # self.save_results()
         # self.save_global_model()
+
+    @monitor_gpu_memory
     def pretrain(self):
-        self.init_round = self.global_rounds_init-1
+        self.init_round = self.global_rounds_init-1#self.init_round是为了防止这里早停
         for i in range(self.global_rounds_init):
             print(f"Pretraining Round{i}")
             print("\nEvaluate global model")
@@ -192,6 +237,7 @@ class serverDA(Server):
         if self.global_rounds_init>0:
             self.aggregate_parameters()
 
+    @monitor_gpu_memory
     def cloud_da1(self,global_round):
         #1.得到标签 2.dataloader 3.训练 4.输出/画出结果
         for epoch in range(self.epoches):
@@ -266,7 +312,7 @@ class serverDA(Server):
 
     # def cloud_da2(self):  #一个其他采样方法
 
-
+    @monitor_gpu_memory
     def receive_models_features(self):
         # 断言语句 不满足会触发AssertionError
         assert (len(self.clients) > 0)
@@ -300,7 +346,7 @@ class serverDA(Server):
         for i, w in enumerate(self.uploaded_weights):
             self.uploaded_weights[i] = w / tot_samples #根据数据量
 
-
+    @monitor_gpu_memory
     def aggregate_parameters(self):
         assert (len(self.uploaded_models) > 0)
 
@@ -322,6 +368,7 @@ class serverDA(Server):
         for w, client_model in zip(self.uploaded_weights, self.uploaded_models):
             self.add_parameters(w, client_model)
 
+    @monitor_gpu_memory
     def add_parameters(self, w, client_model):
         if self.args.F_FedAvg:
             for server_param, client_param in zip(self.global_model.F.parameters(), client_model.F.parameters()):
@@ -339,13 +386,14 @@ class serverDA(Server):
                                                       client_model.unique.parameters()):
                 server_param.data += client_param.data.clone() * w
 
+    @monitor_gpu_memory
     def soft_update(self):
         assert (len(self.clients) > 0)
 
         for client in self.clients:
             client.soft_update(self.global_model)
 
-
+@monitor_gpu_memory
 def compute_mmd_loss(features, domain_labels, sigma=1.0):
     domains = torch.unique(domain_labels)#所有元素放到一个tensor
     mmd_loss = 0.0

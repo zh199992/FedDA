@@ -1,15 +1,15 @@
 {
   "aim": {
     "_type": "choice",
-    "_value": ["smalldatacomparison"]
+    "_value": ["fullablation"]
   },
   "train_ratio": {
     "_type": "choice",
-    "_value": [1.0]
+    "_value": [1]
   },
   "git_version": {
     "_type": "choice",
-    "_value": ["0413v2"]
+    "_value": ["0420v1"]
   },
   "algorithm": {
     "_type": "choice",
@@ -53,7 +53,7 @@
   },
   "local_epochs_client2": {
     "_type": "choice",
-    "_value": [80]
+    "_value": [50]
   },
   "local_epochs_client3": {
     "_type": "choice",
@@ -61,7 +61,7 @@
   },
   "local_epochs_client4": {
     "_type": "choice",
-    "_value": [80]
+    "_value": [50]
   },
   "server_epochs": {
     "_type": "choice",
@@ -106,5 +106,9 @@
   "enable_cloud_da": {
     "_type": "choice",
     "_value": ["true"]
+  },
+  "global_rounds_init": {
+    "_type": "choice",
+    "_value": [1]
   }
 }

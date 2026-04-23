@@ -247,7 +247,7 @@ class serverDA(Server):
                 batch_data = batch_data.to(self.device)
                 batch_domains=batch_domains.to(self.device)
                 domain_preds, feature_DI=self.global_model(batch_data)
-                print(batch_domains,domain_preds,feature_DI)
+                # print(batch_domains,domain_preds,feature_DI)
                 domain_labels = batch_domains
                 adv_loss = self.advloss(domain_preds, domain_labels)
                 mmd_loss = compute_mmd_loss(feature_DI, batch_domains)
@@ -393,7 +393,7 @@ class serverDA(Server):
         for client in self.clients:
             client.soft_update(self.global_model)
 
-@monitor_gpu_memory
+
 def compute_mmd_loss(features, domain_labels, sigma=1.0):
     domains = torch.unique(domain_labels)#所有元素放到一个tensor
     mmd_loss = 0.0

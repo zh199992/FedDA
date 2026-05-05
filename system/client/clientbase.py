@@ -7,8 +7,48 @@ from torch.utils.data import DataLoader, Dataset
 from utils.data_utils import read_client_data, read_client_data_centralized
 from utils.metric import SF
 import adamod
+import functools
+import inspect
+import os
 
+def monitor_gpu_memory(func):
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs):
+        if not torch.cuda.is_available():
+            return func(*args, **kwargs)
 
+        torch.cuda.empty_cache()
+
+        before_alloc = torch.cuda.memory_allocated() / 1024 ** 2
+        before_max = torch.cuda.max_memory_allocated() / 1024 ** 2
+
+        # 获取函数所属的文件路径和类名（如果是方法）
+        func_file = inspect.getfile(func)
+        func_filename = os.path.basename(func_file)
+
+        # 判断是否是类方法，如果是则获取类名
+        if args and hasattr(args[0], '__class__'):
+            class_name = args[0].__class__.__name__
+            func_location = f"{func_filename}::{class_name}.{func.__name__}"
+        else:
+            func_location = f"{func_filename}::{func.__name__}"
+
+        print(f"\n🚀 [显存监控] 进入函数: {func_location}")
+        print(f"   起始占用: {before_alloc:.2f} MB")
+
+        result = func(*args, **kwargs)
+
+        after_alloc = torch.cuda.memory_allocated() / 1024 ** 2
+        after_max = torch.cuda.max_memory_allocated() / 1024 ** 2
+
+        print(f"✅ [显存监控] 离开函数: {func_location}")
+        print(f"   最终占用: {after_alloc:.2f} MB (净增: {after_alloc - before_alloc:.2f} MB)")
+        print(f"   过程峰值: {after_max:.2f} MB")
+        print("-" * 30)
+
+        return result
+
+    return wrapper
 # train是在client类里重写 其他方法在clientbase类里
 class Client(object):
     """

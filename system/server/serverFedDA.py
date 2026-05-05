@@ -318,7 +318,7 @@ class serverDA(Server):
         assert (len(self.clients) > 0)
 
         active_clients = self.clients
-
+        #清空上一次receive的数据
         self.uploaded_ids = []
         self.uploaded_weights = []
         self.uploaded_models = []
@@ -327,7 +327,7 @@ class serverDA(Server):
         self.uploaded_labels = []
 
         tot_samples = 0
-        for i, client in enumerate(active_clients):
+        for i, client in enumerate(self.clients):
             tot_samples += client.train_samples
             self.uploaded_ids.append(client.id)
             self.uploaded_weights.append(client.train_samples)

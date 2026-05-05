@@ -1,7 +1,6 @@
 from distutils.util import strtobool
 import argparse
 import os
-# os.environ["CUDA_VISIBLE_DEVICES"] = "2"
 import time
 import warnings
 import numpy as np

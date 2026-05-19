@@ -1,7 +1,7 @@
 {
   "aim": {
     "_type": "choice",
-    "_value": ["FedAvg"]
+    "_value": ["ind+cent"]
   },
   "train_ratio": {
     "_type": "choice",
@@ -17,11 +17,11 @@
   },
   "sub_algorithm": {
     "_type": "choice",
-    "_value": ["FedAvg"]
+    "_value": ["individual", "centralized"]
   },
   "fedeval": {
     "_type": "choice",
-    "_value": ["true"]
+    "_value": ["false"]
   },
   "local_learning_rate": {
     "_type": "choice",
@@ -53,7 +53,7 @@
   },
   "local_epochs_client2": {
     "_type": "choice",
-    "_value": [50, 80]
+    "_value": [50]
   },
   "local_epochs_client3": {
     "_type": "choice",
@@ -61,7 +61,7 @@
   },
   "local_epochs_client4": {
     "_type": "choice",
-    "_value": [50, 80]
+    "_value": [50]
   },
   "server_epochs": {
     "_type": "choice",
@@ -89,11 +89,11 @@
   },
   "F_FedAvg": {
     "_type": "choice",
-    "_value": ["true"]
+    "_value": ["false"]
   },
   "EDI_FedAvg": {
     "_type": "choice",
-    "_value": ["true"]
+    "_value": ["false"]
   },
   "P_FedAvg": {
     "_type": "choice",
@@ -109,6 +109,6 @@
   },
   "global_rounds_init": {
     "_type": "choice",
-    "_value": [0, 1]
+    "_value": [0]
   }
 }

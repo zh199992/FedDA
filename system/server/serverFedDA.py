@@ -130,11 +130,12 @@ class serverDA(Server):
             for client in self.clients:
                 client.global_round = i
                 client.train()
-            for client in self.clients:
-                client.get_feature()
-            self.receive_models_features()
-
-            self.aggregate_parameters()
+            # 仅在非 centralized 模式下收集特征以节省显存
+            if getattr(self.args, 'sub_algorithm', None) != 'centralized':
+                for client in self.clients:
+                    client.get_feature()
+                self.receive_models_features()
+                self.aggregate_parameters()
 
             self.learning_rate_scheduler = torch.optim.lr_scheduler.ExponentialLR(
                 optimizer=self.optimizer,
@@ -175,11 +176,13 @@ class serverDA(Server):
             # ========================================================================================================
 
         # print(plot_all_clients_features(self.uploaded_middle_features, self.uploaded_labels))
-        import os
-        feature_plot_path = os.path.join(self.graph_path, "final_clients_features.png")
-        scores = plot_all_clients_features(self.uploaded_middle_features, self.uploaded_labels,
-                                           save_path=feature_plot_path)
-        print(scores)
+        if getattr(self.args, 'sub_algorithm', None) != 'centralized':
+            # print(plot_all_clients_features(self.uploaded_middle_features, self.uploaded_labels))
+            import os
+            feature_plot_path = os.path.join(self.graph_path, "final_clients_features.png")
+            scores = plot_all_clients_features(self.uploaded_middle_features, self.uploaded_labels,
+                                               save_path=feature_plot_path)
+            print(scores)
         # print("\nBest accuracy.")
         # print(max(self.rs_test_rmse))
 
@@ -207,9 +210,11 @@ class serverDA(Server):
             for client in self.clients:
                 client.global_round = i
                 client.train()
-            for client in self.clients:
-                client.get_feature()
-            self.receive_models_features()
+            # 仅在非 centralized 模式下收集特征以节省显存
+            if getattr(self.args, 'sub_algorithm', None) != 'centralized':
+                for client in self.clients:
+                    client.get_feature()
+                self.receive_models_features()
             if not self.args.fedeval:
                 self.evaluate(round=i+1)
 
@@ -234,8 +239,9 @@ class serverDA(Server):
                     self.init_round=i
                     break  # 终止训练循环
         # ---------------------------------------------------------------------
-        if self.global_rounds_init>0:
-            self.aggregate_parameters()
+        if getattr(self.args, 'sub_algorithm', None) != 'centralized':
+            if self.global_rounds_init>0:
+                self.aggregate_parameters()
 
     @monitor_gpu_memory
     def cloud_da1(self,global_round):

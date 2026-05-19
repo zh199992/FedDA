@@ -17,11 +17,137 @@ import numpy as np
 import matplotlib.pyplot as plt
 from utils.data_utils import visualize_features_with_rul, compute_rul_silhouette_score
 from models import model
+
+import pandas as pd
+
+
+def plot_score_bar_with_table():
+    # 模拟数据
+    df = pd.DataFrame({
+        'OneByOne': [31.9097, 38.2774, 34.5675],
+        'BaseLine': [31.9525, 38.1326, 34.6350],
+        'FedAvg': [31.9399, 38.0551, 34.5147],
+        'FedRUL2': [31.9485, 37.9945, 34.4447],
+        'FedRUL': [31.9140, 37.8827, 34.4423],
+        'UpperLimit': [31.9104, 37.8739, 34.4155]
+    }, index=['Bearing1_3', 'Bearing2_2', 'Bearing3_4'])
+
+    fig, ax = plt.subplots(figsize=(10, 6))
+
+    # 绘制柱状图
+    df.plot(kind='bar', ax=ax, width=0.8, color=['#e5989b', '#ffb703', '#81b29a', '#6d597a', '#f28482', '#457b9d'])
+
+    ax.set_ylabel("Score")
+    ax.set_ylim(30, 40)  # 根据数据调整 y 轴范围
+    ax.set_xticklabels([])  # 隐藏 X 轴刻度，因为下方有表格
+    ax.grid(axis='y', linestyle='-', alpha=0.3)
+
+    # 添加数据表格
+    table_data = df.T.values.round(4)
+    the_table = plt.table(cellText=table_data,
+                          rowLabels=df.columns,
+                          colLabels=df.index,
+                          loc='bottom',
+                          cellLoc='center')
+
+    the_table.scale(1, 1.5)  # 调整表格高度
+    plt.subplots_adjust(left=0.2, bottom=0.3)
+    plt.show()
+
+
+# plot_score_bar_with_table()
+import matplotlib.pyplot as plt
+import numpy as np
+from scipy.interpolate import make_interp_spline
+
+
+def plot_rul_results(data_dict):
+    """
+    data_dict: 结构为 { 'Bearing 1_3': {'FedAvg': [], 'GroundTruth': [], ...}, ... }
+    """
+    fig, axes = plt.subplots(1, 3, figsize=(15, 4), constrained_layout=True)
+    methods = ['OneByOne', 'BaseLine', 'FedAvg', 'FedRUL2', 'FedRUL', 'UpperLimit']
+    colors = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd', '#8c564b']
+
+    for i, (bearing_name, results) in enumerate(data_dict.items()):
+        ax = axes[i]
+        time = np.arange(len(results['GroundTruth']))
+
+        # 绘制 Ground Truth (黑色虚线)
+        ax.plot(time, results['GroundTruth'], 'k--', label='Ground truth RUL', linewidth=1.5)
+
+        # 绘制各方法曲线
+        for m_idx, method in enumerate(methods):
+            y = results[method]
+            # 平滑处理 (模拟原图平滑感)
+            x_smooth = np.linspace(time.min(), time.max(), 300)
+            spl = make_interp_spline(time, y, k=3)
+            y_smooth = spl(x_smooth)
+
+            ax.plot(x_smooth, y_smooth, color=colors[m_idx], label=method, alpha=0.8)
+
+        ax.set_title(f"({chr(97 + i)}) {bearing_name}", fontsize=14)
+        ax.set_xlabel("Time (15s)")
+        ax.set_ylabel("RUL (15s)")
+        ax.set_ylim(0, 110)
+        ax.grid(True, linestyle=':', alpha=0.6)
+
+    # 仅在最后一个子图旁显示图例
+    axes[2].legend(bbox_to_anchor=(1.05, 1), loc='upper left')
+    plt.show()
+
+
+def get_debug_data():
+    """
+    生成适配 plot_rul_results 函数的模拟数据
+    结构: { 'Bearing_ID': { 'Method_Name': [values], 'GroundTruth': [values] } }
+    """
+    bearings = ['Bearing 1_3', 'Bearing 2_2', 'Bearing 3_4']
+    methods = ['OneByOne', 'BaseLine', 'FedAvg', 'FedRUL2', 'FedRUL', 'UpperLimit']
+
+    data_dict = {}
+
+    for b in bearings:
+        # 为每个轴承生成随机长度 (80到110之间)
+        seq_len = np.random.randint(80, 110)
+
+        # 1. 生成 Ground Truth: 线性递减至 0
+        start_rul = np.random.uniform(80, 100)
+        gt = np.linspace(start_rul, 0, seq_len)
+
+        b_data = {'GroundTruth': gt.tolist()}
+
+        # 2. 为每个方法生成预测值
+        for m in methods:
+            # 模拟预测误差：增加随机噪声 + 指数平滑感
+            # 不同的方法可以设置不同的偏置，模拟性能差异
+            bias = np.random.uniform(-5, 5)
+            noise = np.random.normal(0, 3, seq_len)
+
+            # 模拟预测曲线 (真值 + 偏置 + 噪声)
+            pred = gt + bias + noise
+
+            # PHM 约束：RUL 不能为负数
+            pred = np.maximum(pred, 0)
+
+            b_data[m] = pred.tolist()
+
+        data_dict[b] = b_data
+
+    return data_dict
+
+# --- 调试演示 ---
 if __name__ == "__main__":
-    # m2ymodel = model.GHDR_FL(18).to('cuda')
-    input = torch.rand([16,30,18]).to('cuda')
-    print(input.shape)
-    # output = m2ymodel(input)
+    # 1. 获取模拟输入
+    test_data = get_debug_data()
+
+    # 2. 检查格式
+    print(f"输入字典的键 (轴承): {list(test_data.keys())}")
+    print(f"内层字典的键 (模型): {list(test_data['Bearing 1_3'].keys())}")
+    print(f"序列长度示例: {len(test_data['Bearing 1_3']['GroundTruth'])}")
+
+    # 3. 此时即可直接调用绘图函数
+    plot_rul_results(test_data)
     pass
 ##test git func
 ##test git+pycharm

@@ -97,7 +97,7 @@
   },
   "P_FedAvg": {
     "_type": "choice",
-    "_value": ["false"]
+    "_value": ["true"]
   },
   "EDS": {
     "_type": "choice",
@@ -109,6 +109,6 @@
   },
   "global_rounds_init": {
     "_type": "choice",
-    "_value": [0, 1]
+    "_value": [0]
   }
 }

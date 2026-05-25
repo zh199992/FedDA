@@ -90,13 +90,29 @@ class Server(object):
         #第一种路径  先分config和graph，再接试验任务。 第二种路径，先按任务分类，再config和graph
         # directory = 'test2/config/'  # 比画图多一个/config/
         if getattr(args, 'sub_algorithm', None) is None:
-            self.graph_path = os.path.join(root_dir, "logs", 'graph',  # 这里示意一下，实际在serverbase-init 生效
-                                          args.aim, nni.get_experiment_id(), args.algorithm, nni.get_trial_id() + '-' + args.TIMESTAMP)
+            self.graph_path = os.path.join(root_dir, "logs", 'graph',
+                                           args.aim, nni.get_experiment_id(), args.algorithm,
+                                           nni.get_trial_id() + '-' + args.TIMESTAMP)
         else:
-            self.graph_path = os.path.join(root_dir, "logs", 'graph',  # 这里示意一下，实际在serverbase-init 生效
-                                          args.aim, nni.get_experiment_id(), args.sub_algorithm, nni.get_trial_id() + '-' + args.TIMESTAMP)
-        # self.graph_path=root_dir+'/logs/0730/graph/' + self.algorithm + '/'+args.aim+'/'+args.TIMESTAMP
-        self.writer = tb.SummaryWriter(self.graph_path)  # tensorboard文件存储的文件夹
+            self.graph_path = os.path.join(root_dir, "logs", 'graph',
+                                           args.aim, nni.get_experiment_id(), args.sub_algorithm,
+                                           nni.get_trial_id() + '-' + args.TIMESTAMP)
+
+            # Create EMA subdirectory path if use_ema is enabled
+        if getattr(args, 'use_ema', False):
+            self.graph_path_ema = os.path.join(self.graph_path, 'ema')
+        else:
+            self.graph_path_ema = None
+
+            # self.graph_path=root_dir+'/logs/0730/graph/' + self.algorithm + '/'+args.aim+'/'+args.TIMESTAMP
+        self.writer = tb.SummaryWriter(self.graph_path)  # Main writer for all metrics
+
+        # EMA writer (only created when use_ema is True)
+        if self.graph_path_ema:
+            self.writer_ema = tb.SummaryWriter(self.graph_path_ema)
+            print(f"✅ EMA writer initialized at: {self.graph_path_ema}")
+        else:
+            self.writer_ema = None
 
         self.test_avg_loss=999
         self.rs_test_rmse=[]
@@ -159,21 +175,24 @@ class Server(object):
     @monitor_gpu_memory
     def evaluate(self, round):
         stats = self.test_metrics()
-        # total_test_loss = (torch.tensor([l*n for l,n in zip(stats[0],stats[1])])).sum()/(torch.tensor(stats[1]).sum())
-        #
+        loss_local_list = stats[0]
+        num_samples = stats[1]
+        score_local_list = stats[2]
+        loss_ema_list = stats[3]
+        score_ema_list = stats[4]
         # # print("Averaged Train Loss: {:.4f}".format(train_loss))
         # print("Averaged Test loss: {:.4f}".format(torch.sqrt(total_test_loss)))
-        for i in range(len(stats[0])):
-            self.writer.add_scalar("test/round loss "+str(i+1), torch.sqrt(stats[0][i]), round)
-            if torch.sqrt(stats[0][i])<self.client_best_loss[i]:#stats里是MSE
-                self.client_best_loss[i]=torch.sqrt(stats[0][i])
+        for i in range(len(loss_local_list)):
+            self.writer.add_scalar("test/round loss "+str(i+1), torch.sqrt(loss_local_list[i]), round)
+            if torch.sqrt(loss_local_list[i]) < self.client_best_loss[i]:
+                self.client_best_loss[i] = torch.sqrt(loss_local_list[i])
         # nni.report_intermediate_result({"test/round loss 1": torch.sqrt(stats[0][0]).item(),
         #                                 "test/round loss 2": torch.sqrt(stats[0][1]).item(),
         #                                 "test/round loss 3": torch.sqrt(stats[0][2]).item() ,
         #                                 "test/round loss 4": torch.sqrt(stats[0][3]).item()})
-        best_avg_test_loss = (torch.tensor([torch.square(l)*n for l,n in zip(self.client_best_loss,stats[1])])).sum()/(torch.tensor(stats[1]).sum())
+        best_avg_test_loss = (torch.tensor([torch.square(l)*n for l,n in zip(self.client_best_loss,num_samples)])).sum()/(torch.tensor(num_samples).sum())
         best_avg_test_loss=torch.sqrt(best_avg_test_loss)
-        current_avg_test_loss = (torch.tensor([l*n for l,n in zip(stats[0],stats[1])])).sum()/(torch.tensor(stats[1]).sum())
+        current_avg_test_loss = (torch.tensor([l*n for l,n in zip(loss_local_list, num_samples)])).sum()/(torch.tensor(num_samples).sum())
         current_avg_test_loss=torch.sqrt(current_avg_test_loss)
         # print("Averaged Train Loss: {:.4f}".format(train_loss))
         print("best avg test loss: {:.4f}".format(best_avg_test_loss))
@@ -185,23 +204,63 @@ class Server(object):
         # if self.test_avg_loss>torch.sqrt(total_test_loss).item():
         self.test_avg_loss=best_avg_test_loss.item()
         self.rs_test_rmse.append(self.test_avg_loss)
-        print("Test score:" ,stats[2])
+        print("Test score:" ,score_local_list)
         # self.print_(test_acc, train_acc, train_loss)
         # print("Std Test loss: {:.4f}".format(np.std(accs)))
         # print("Std Test score: {:.4f}".format(np.std(aucs)))
+        if self.writer_ema is not None:
+            # Reset best loss tracking for EMA
+            ema_best_loss_list = [999] * len(loss_ema_list)
+
+            for i in range(len(loss_ema_list)):
+                self.writer_ema.add_scalar("test/round loss " + str(i + 1), torch.sqrt(loss_ema_list[i]), round)
+                if torch.sqrt(loss_ema_list[i]) < ema_best_loss_list[i]:
+                    ema_best_loss_list[i] = torch.sqrt(loss_ema_list[i])
+
+            ema_best_avg = (torch.tensor(
+                [torch.square(l) * n for l, n in zip(ema_best_loss_list, num_samples)])).sum() / (
+                               torch.tensor(num_samples).sum())
+            ema_best_avg = torch.sqrt(ema_best_avg)
+            ema_current_avg = (torch.tensor([l * n for l, n in zip(loss_ema_list, num_samples)])).sum() / (
+                torch.tensor(num_samples).sum())
+            ema_current_avg = torch.sqrt(ema_current_avg)
+
+            print("\n📊 EMA Model Metrics:")
+            print("best avg test loss (ema): {:.4f}".format(ema_best_avg))
+            self.writer_ema.add_scalar("test/best average loss", ema_best_avg, round)
+            print("current avg test loss (ema): {:.4f}".format(ema_current_avg))
+            self.writer_ema.add_scalar("test/current average loss", ema_current_avg, round)
+            print("Test score (ema):", score_ema_list)
 
     @monitor_gpu_memory
     def test_metrics(self):
-        loss_list=[]
+        loss_local_list=[]
         num_samples = []
-        score_list = []
-        for c in self.clients:
-            loss, test_num, score = c.test_metrics()# loss, test_num, score
-            loss_list.append(loss)
-            num_samples.append(torch.tensor(test_num))
-            score_list.append(score)
+        score_local_list = []
+        loss_ema_list = []
+        score_ema_list = []
 
-        return loss_list, num_samples,  score_list
+        for c in self.clients:
+            result = c.test_metrics()
+
+            # Handle both old format (3 values) and new format (5 values)
+            if len(result) == 5:
+                loss_local, test_num, score_local, loss_ema, score_ema = result
+                loss_local_list.append(loss_local)
+                num_samples.append(torch.tensor(test_num))
+                score_local_list.append(score_local)
+                loss_ema_list.append(loss_ema if loss_ema is not None else loss_local)
+                score_ema_list.append(score_ema if score_ema is not None else score_local)
+            else:
+                # Backward compatibility
+                loss_local, test_num, score_local = result
+                loss_local_list.append(loss_local)
+                num_samples.append(torch.tensor(test_num))
+                score_local_list.append(score_local)
+                loss_local_list.append(loss_local)
+                score_local_list.append(score_local)
+
+        return loss_local_list, num_samples, score_local_list, loss_ema_list, score_ema_list
 
     @monitor_gpu_memory
     def train_metrics(self):

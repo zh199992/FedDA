@@ -1,7 +1,7 @@
 {
   "aim": {
     "_type": "choice",
-    "_value": ["FedPerwithEMA"]
+    "_value": ["FedDAwoEDSwithEMA"]
   },
   "train_ratio": {
     "_type": "choice",
@@ -9,7 +9,7 @@
   },
   "git_version": {
     "_type": "choice",
-    "_value": ["20260525v1"]
+    "_value": ["20260525v2"]
   },
   "algorithm": {
     "_type": "choice",
@@ -17,7 +17,7 @@
   },
   "sub_algorithm": {
     "_type": "choice",
-    "_value": ["FedDA"]
+    "_value": ["FedPer"]
   },
   "fedeval": {
     "_type": "choice",
@@ -101,11 +101,11 @@
   },
   "EDS": {
     "_type": "choice",
-    "_value": ["true"]
+    "_value": ["false"]
   },
   "enable_cloud_da": {
     "_type": "choice",
-    "_value": ["true"]
+    "_value": ["false"]
   },
   "global_rounds_init": {
     "_type": "choice",
@@ -117,6 +117,6 @@
   },
   "client_ema_decay": {
     "_type": "choice",
-    "_value": [0.2]
+    "_value": [0.05]
   }
 }

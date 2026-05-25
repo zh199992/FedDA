@@ -56,6 +56,10 @@ class clientAvg(Client):
                 output, _, _ = self.model(x)
                 loss = self.loss(output, y)
                 self.writer.add_scalar('test/client'+str(self.id),torch.sqrt(loss),global_step_test+i)
+                if self.args.use_ema:
+                    ema_output, _, _ = self.ema_model(x)
+                    ema_loss = self.loss(ema_output, y)
+                    self.writer.add_scalar('test/ema_client' + str(self.id), torch.sqrt(ema_loss), global_step_test + i)
 
             if self.learning_rate_decay:
                 self.learning_rate_scheduler.step()

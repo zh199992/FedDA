@@ -444,6 +444,7 @@ if __name__ == '__main__':
     parser.add_argument('-EDI_Freeze', "--EDI_Freeze", type=bool,default=False)
     parser.add_argument('-EDS', "--EDS", type=bool,default=False)#影响模型的forward
     parser.add_argument('-fedeval', "--fedeval", type=bool, default=False)
+    parser.add_argument('-use_ema', "--use_ema", type=bool, default=False)
     parser.add_argument('-DA_loss', type=str, default="adv+mmd",choices=["adv+mmd","adv","mmd","none"])
     parser.add_argument('-lambda_mmd', "--lambda_mmd", type=float, default=0.05)
     parser.add_argument('-gamma', "--gamma", type=float, default=0.05)
@@ -487,6 +488,9 @@ if __name__ == '__main__':
     if type(args.fedeval)==str:
         # args.P_FedAvg = bool(strtobool(args.P_FedAvg))
         args.fedeval = bool(strtobool(args.fedeval))
+    if type(args.use_ema)==str:
+        # args.P_FedAvg = bool(strtobool(args.P_FedAvg))
+        args.use_ema = bool(strtobool(args.use_ema))
     if args.local_epochs_client1 is None:
         args.local_epochs_client1 = args.local_epochs
     if args.local_epochs_client2 is None:

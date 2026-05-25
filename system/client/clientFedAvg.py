@@ -7,6 +7,11 @@ class clientAvg(Client):
     def __init__(self, args, id, train_samples, test_samples, **kwargs):
         super().__init__(args, id, train_samples, test_samples, **kwargs)
 
+
+# 在训练过程中更新EMA
+
+
+
     def train(self):
 
         # self.model.to(self.device)
@@ -55,7 +60,17 @@ class clientAvg(Client):
             if self.learning_rate_decay:
                 self.learning_rate_scheduler.step()
 
+            if self.args.use_ema:
+                self.update_ema()
 
+    def update_ema(self):
+        for ema_param, param in zip(
+                self.ema_model.parameters(),
+                self.model.parameters()
+        ):
+            ema_param.data.mul_(self.ema_decay).add_(
+                param.data, alpha=1 - self.ema_decay
+            )
     def set_parameters(self, model):
         if self.args.F_FedAvg:
             for new_param, old_param in zip(model.F.parameters(), self.model.F.parameters()):#可以选择

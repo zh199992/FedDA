@@ -93,6 +93,9 @@ class Client(object):
         self.global_round = None
         self.trainloader = self.load_train_data()
         self.testloader = self.load_test_data(1024)
+        # 在 clientFedDA.py 中添加
+        self.ema_model = copy.deepcopy(self.model)
+        self.ema_decay = args.client_ema_decay if hasattr(args, 'client_ema_decay') else 0.99
 
     def get_feature(self):#server.train 调用
         self.shallow_feature = []
@@ -152,7 +155,10 @@ class Client(object):
         with torch.no_grad():
             x = x.to(self.device)
             y = y.to(self.device)
-            output, shallow, middle = self.model(x)
+            if self.args.use_ema:
+                output, shallow, middle = self.ema_model(x)
+            else:
+                output, shallow, middle = self.model(x)
             loss = self.loss(output, y)
             score = SF(y, output)
 

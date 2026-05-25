@@ -17,7 +17,7 @@
   },
   "sub_algorithm": {
     "_type": "choice",
-    "_value": ["FedPer"]
+    "_value": ["FedDA"]
   },
   "fedeval": {
     "_type": "choice",
@@ -101,11 +101,11 @@
   },
   "EDS": {
     "_type": "choice",
-    "_value": ["false"]
+    "_value": ["true"]
   },
   "enable_cloud_da": {
     "_type": "choice",
-    "_value": ["false"]
+    "_value": ["true"]
   },
   "global_rounds_init": {
     "_type": "choice",
@@ -115,8 +115,8 @@
     "_type": "choice",
     "_value": ["true"]
   },
-  "ema_decay": {
+  "client_ema_decay": {
     "_type": "choice",
-    "_value": [0.99, 0.995, 0.999]
+    "_value": [0.2]
   }
 }

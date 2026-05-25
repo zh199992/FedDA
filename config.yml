@@ -1,17 +1,17 @@
-experimentName: ind+cent
+experimentName: FedDAwithEDSwithEMA
 trialCommand: python main.py
 trialCodeDirectory: .
 trialConcurrency: 1 #导致一个显卡跑n个实验
 trialGpuNumber: 1 #设置这个不能跑
 maxTrialNumber: 2000
-searchSpaceFile: ./search_space/ind+cent.json
+searchSpaceFile: ./search_space/1126.json
 tuner:
   name: TPE
   classArgs:
     optimize_mode: minimize
 trainingService:
   platform: local
-  gpuIndices: [2]
+  gpuIndices: [1]
   maxTrialNumberPerGpu: 1
   useActiveGpu: True
 

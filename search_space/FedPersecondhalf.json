@@ -1,7 +1,7 @@
 {
   "aim": {
     "_type": "choice",
-    "_value": ["FedPerwoEDSwithEMAnewepoch"]
+    "_value": ["FedPerwoEDSwith09EMAnewepoch"]
   },
   "train_ratio": {
     "_type": "choice",
@@ -17,7 +17,7 @@
   },
   "sub_algorithm": {
     "_type": "choice",
-    "_value": ["FedDA"]
+    "_value": ["FedPer"]
   },
   "fedeval": {
     "_type": "choice",
@@ -47,21 +47,13 @@
     "_type": "choice",
     "_value": [50]
   },
-  "local_epochs_client1": {
+  "local_epochs_group1": {
     "_type": "choice",
-    "_value": [50]
+    "_value": [60, 70, 80, 90, 100]
   },
-  "local_epochs_client2": {
+  "local_epochs_group2": {
     "_type": "choice",
-    "_value": [60]
-  },
-  "local_epochs_client3": {
-    "_type": "choice",
-    "_value": [50]
-  },
-  "local_epochs_client4": {
-    "_type": "choice",
-    "_value": [60]
+    "_value": [40, 50 ,60, 70, 80, 90, 100]
   },
   "server_epochs": {
     "_type": "choice",
@@ -117,6 +109,6 @@
   },
   "client_ema_decay": {
     "_type": "choice",
-    "_value": [0.995, 0.99, 0.9, 0.8, 0.7, 0.6]
+    "_value": [0.9]
   }
 }

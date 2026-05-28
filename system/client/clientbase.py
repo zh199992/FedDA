@@ -151,6 +151,7 @@ class Client(object):
         # self.model = self.load_model('model')
         # self.model.to(self.device)
         self.model.eval()
+        self.ema_model.eval()
 
         with torch.no_grad():
             x = x.to(self.device)

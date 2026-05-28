@@ -415,6 +415,10 @@ if __name__ == '__main__':
     parser.add_argument('-le2', "--local_epochs_client2", type=int, default=None)
     parser.add_argument('-le3', "--local_epochs_client3", type=int, default=None)
     parser.add_argument('-le4', "--local_epochs_client4", type=int, default=None)
+    parser.add_argument('-leg1', "--local_epochs_group1", type=int, default=None,
+                        help="Local epochs for client1 and client3")
+    parser.add_argument('-leg2', "--local_epochs_group2", type=int, default=None,
+                        help="Local epochs for client2 and client4 (must be >= group1)")
     # parser.add_argument('-le2', "--local_epochs2", type=int, default=100, help = "只有GHDR用")
     parser.add_argument('-se', "--server_epochs", type=int, default=10)
     # parser.add_argument('-clr', "--local_learning_rate", type=str, default='0.001,0.001')
@@ -492,13 +496,13 @@ if __name__ == '__main__':
         # args.P_FedAvg = bool(strtobool(args.P_FedAvg))
         args.use_ema = bool(strtobool(args.use_ema))
     if args.local_epochs_client1 is None:
-        args.local_epochs_client1 = args.local_epochs
+        args.local_epochs_client1 = args.local_epochs_group1
     if args.local_epochs_client2 is None:
-        args.local_epochs_client2 = args.local_epochs
+        args.local_epochs_client2 = args.local_epochs_group2
     if args.local_epochs_client3 is None:
-        args.local_epochs_client3 = args.local_epochs
+        args.local_epochs_client3 = args.local_epochs_group1
     if args.local_epochs_client4 is None:
-        args.local_epochs_client4 = args.local_epochs
+        args.local_epochs_client4 = args.local_epochs_group2
     args.local_epochs_list = [
         args.local_epochs_client1,
         args.local_epochs_client2,
@@ -515,6 +519,10 @@ if __name__ == '__main__':
     print("=" * 50)
 
     #####输出配置
+    if args.local_epochs_group1 is not None and args.local_epochs_group2 is not None:
+        # 验证 group2 >= group1
+        if args.local_epochs_group2 < args.local_epochs_group1:
+            sys.exit(f"⚠️  Warning: local_epochs_group2 ({args.local_epochs_group2}) < local_epochs_group1 ({args.local_epochs_group1})")
 
 
     run(args)

@@ -24,6 +24,10 @@ class clientAvg(Client):
 
         max_local_epochs = self.local_epochs
 
+        epoch_train_losses = []
+        epoch_test_losses_local = []
+        epoch_test_losses_ema = []
+
         for epoch in range(max_local_epochs):
             print(f"global round {self.global_round} client{self.id}  local epoch: {epoch} ")
             global_step = (self.global_round * max_local_epochs + epoch) * len(self.trainloader)
@@ -32,6 +36,7 @@ class clientAvg(Client):
             total_train_loss = 0.0
             total_train_samples = 0
 
+            self.model.train()
             for i, (x, y) in enumerate(self.trainloader):
                 x = x.to(self.device)
                 y = y.to(self.device)
@@ -47,21 +52,39 @@ class clientAvg(Client):
                 total_train_loss += loss* len(x)
                 total_train_samples += len(x)
 
-            avg_train_loss = total_train_loss / total_train_samples
-            self.writer.add_scalar('train/epochloss_client' + str(self.id), torch.sqrt(avg_train_loss), global_step + i)
+            avg_epoch_train_loss = total_train_loss / total_train_samples
+            epoch_train_losses.append(torch.sqrt(avg_epoch_train_loss).item())
+            self.writer.add_scalar('train/epochloss_client' + str(self.id), torch.sqrt(avg_epoch_train_loss), global_step + i)
 
+            self.model.eval()
+            self.ema_model.eval()
             for i, (x, y) in enumerate(self.testloader):
                 x = x.to(self.device)
                 y = y.to(self.device)
-                output, _, _ = self.model(x)
-                loss = self.loss(output, y)
-                self.writer.add_scalar('test/client'+str(self.id),torch.sqrt(loss),global_step_test+i)
+
+                output_local, _, _ = self.model(x)
+                output_ema, _, _ = self.ema_model(x)
+                loss_local = self.loss(output_local, y)
+                loss_ema = self.loss(output_ema, y)
+                self.writer.add_scalar('test/client'+str(self.id),torch.sqrt(loss_local),global_step_test+i)
+                self.writer.add_scalar('test/client_ema'+str(self.id),torch.sqrt(loss_ema),global_step_test+i)
+
+            epoch_test_losses_local.append(torch.sqrt(loss_local).item())
+            epoch_test_losses_ema.append(torch.sqrt(loss_ema).item())
 
             if self.learning_rate_decay:
                 self.learning_rate_scheduler.step()
 
             if self.args.use_ema:
                 self.update_ema()
+
+        # avg_train_loss = np.mean(epoch_train_losses)
+        # avg_test_loss_local = np.mean(epoch_test_losses_local)
+        # avg_test_loss_ema = np.mean(epoch_test_losses_ema)
+        # self.writer.add_scalar('train/round_avg_loss_client' + str(self.id), np.sqrt(avg_train_loss), self.global_round)
+        # self.writer.add_scalar('test/round_avg_loss_client' + str(self.id), np.sqrt(avg_test_loss_local), self.global_round)
+        # if self.args.use_ema:
+        #     self.writer.add_scalar('test/round_avg_loss_ema_client' + str(self.id), np.sqrt(avg_test_loss_ema), self.global_round)
 
     def update_ema(self):
         for ema_param, param in zip(

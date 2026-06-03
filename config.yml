@@ -1,4 +1,4 @@
-experimentName: FedDAcloudlambda
+experimentName: FedDAcloudlambdaablationnormalizedloss
 trialCommand: python main.py
 trialCodeDirectory: .
 trialConcurrency: 1 #导致一个显卡跑n个实验
@@ -11,7 +11,7 @@ tuner:
     optimize_mode: minimize
 trainingService:
   platform: local
-  gpuIndices: [1]
+  gpuIndices: [2]
   maxTrialNumberPerGpu: 1
   useActiveGpu: True
 

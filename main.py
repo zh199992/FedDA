@@ -461,7 +461,11 @@ if __name__ == '__main__':
             setattr(args, key, value)
         if getattr(args, 'git_version', None) is None:
             raise ValueError("git_version missing")
-
+        if hasattr(args, 'local_epochs_combination'):
+            args.local_epochs_group1 = args.local_epochs_combination[0]
+            args.local_epochs_group2 = args.local_epochs_combination[1]
+            # 删除组合参数，避免后续混淆
+            delattr(args, 'local_epochs_combination')
     else:
         args.local_epochs = 10
         args.server_epochs = 1

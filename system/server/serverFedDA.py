@@ -257,54 +257,22 @@ class serverDA(Server):
                 domain_labels = batch_domains
                 adv_loss = self.advloss(domain_preds, domain_labels)
                 mmd_loss = compute_mmd_loss(feature_DI, batch_domains)
+                # 归一化损失（除以detach值，使梯度不受量级影响）
+                adv_loss_normalized = adv_loss / (adv_loss.detach() + 1e-8)
+                mmd_loss_normalized = mmd_loss / (mmd_loss.detach() + 1e-8)
+
                 self.writer.add_scalar('train/server_mmd', mmd_loss, global_step + i)
                 self.writer.add_scalar('train/server_adv', adv_loss, global_step + i)
-                if self.DA_loss=='mmd':
-                    # total_loss = mmd_loss
-                    total_loss = (1-self.gamma)*mmd_loss
-                    # adv_loss = self.advloss(domain_preds, domain_labels)
-                    # mmd_loss = compute_mmd_loss(feature_DI, batch_domains)
-                    # self.writer.add_scalar('train/server_mmd', mmd_loss, global_step + i)
-                    # self.writer.add_scalar('train/server_adv', adv_loss, global_step + i)
-                    # mmd_loss=mmd_loss/mmd_loss.detach()
-                    # mmd_loss.backward()
-                    # self.optimizer.step()
-                elif self.DA_loss=='adv':
-                    # total_loss = adv_loss
-                    total_loss = self.gamma*adv_loss
-                    # adv_loss = self.advloss(domain_preds, domain_labels)
-                    # mmd_loss = compute_mmd_loss(feature_DI, batch_domains)
-                    # self.writer.add_scalar('train/server_mmd', mmd_loss, global_step + i)
-                    # self.writer.add_scalar('train/server_adv', adv_loss, global_step + i)
-                    # adv_loss=adv_loss/adv_loss.detach()
-                    # adv_loss.backward()
-                    # self.optimizer.step()
-                elif self.DA_loss=='adv+mmd':
-                    total_loss = adv_loss + self.lambda_mmd*mmd_loss#gamma    (1-gamma     ) [0,1] 0.1
-                    # total_loss = self.gamma*adv_loss/ + (1-self.gamma)*self.lambda_mmd*mmd_loss#gamma    (1-gamma     ) [0,1] 0.1
-                    total_loss = self.gamma*adv_loss + (1-self.gamma)*mmd_loss#gamma    (1-gamma     ) [0,1] 0.1
-                    # adv_loss = self.advloss(domain_preds, domain_labels)
-                    # adv_loss_normalized = self.gamma*adv_loss/adv_loss.detach()
-                    # adv_loss_normalized.backward()
-                    # for name, param in self.global_model.named_parameters():
-                    #     if param.grad is not None:
-                    #         self.writer.add_histogram(f'{name}/adv_loss', param.grad, 0)
-                    # self.optimizer.step()
-                    # self.optimizer.zero_grad()
-                    # #--------------这样应该可以创建新的计算图  实际应用再改会一起优化就行
-                    # batch_data = batch_data.to(self.device)
-                    # batch_domains = batch_domains.to(self.device)
-                    # domain_preds, feature_DI = self.global_model(batch_data)
-                    # mmd_loss = compute_mmd_loss(feature_DI, batch_domains)
-                    # self.writer.add_scalar('train/server_mmd', mmd_loss, global_step + i)
-                    # self.writer.add_scalar('train/server_adv', adv_loss, global_step + i)
-                    # mmd_loss_normalized = (1-self.gamma)*mmd_loss/mmd_loss.detach()#gamma    (1-gamma     ) [0,1] 0.1
-                    # mmd_loss_normalized.backward()
-                    # for name, param in self.global_model.named_parameters():
-                    #     if param.grad is not None:
-                    #         self.writer.add_histogram(f'{name}/mmd_loss', param.grad, 0)
-                    # self.optimizer.step()
-                    # self.optimizer.zero_grad()
+                self.writer.add_scalar('train/server_mmd_normalized', mmd_loss_normalized, global_step + i)
+                self.writer.add_scalar('train/server_adv_normalized', adv_loss_normalized, global_step + i)
+
+                if self.DA_loss == 'mmd':
+                    total_loss = mmd_loss_normalized
+                elif self.DA_loss == 'adv':
+                    total_loss = adv_loss_normalized
+                elif self.DA_loss == 'adv+mmd':
+                    # total_loss = self.gamma * adv_loss_normalized + (1-self.gamma) * mmd_loss_normalized
+                    total_loss = self.gamma * adv_loss + (1 - self.gamma) * mmd_loss  # gamma    (1-gamma
                 elif  self.DA_loss=='none':
                     total_loss = 0
                 else:

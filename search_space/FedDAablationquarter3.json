@@ -1,7 +1,7 @@
 {
   "aim": {
     "_type": "choice",
-    "_value": ["FedPerwoEDSwith09EMAnewepoch"]
+    "_value": ["FedDAwoEDSablationwith09EMAnewepoch"]
   },
   "train_ratio": {
     "_type": "choice",
@@ -17,7 +17,7 @@
   },
   "sub_algorithm": {
     "_type": "choice",
-    "_value": ["FedPer"]
+    "_value": ["FedDA"]
   },
   "fedeval": {
     "_type": "choice",
@@ -49,7 +49,7 @@
   },
   "local_epochs_group1": {
     "_type": "choice",
-    "_value": [60, 70, 80, 90, 100]
+    "_value": [80]
   },
   "local_epochs_group2": {
     "_type": "choice",
@@ -61,7 +61,7 @@
   },
   "DA_loss": {
     "_type": "choice",
-    "_value": ["adv+mmd"]
+    "_value": ["adv", "mmd"]
   },
   "gamma": {
     "_type": "choice",
@@ -97,7 +97,7 @@
   },
   "enable_cloud_da": {
     "_type": "choice",
-    "_value": ["false"]
+    "_value": ["true"]
   },
   "global_rounds_init": {
     "_type": "choice",

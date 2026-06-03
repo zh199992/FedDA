@@ -9,7 +9,7 @@
   },
   "git_version": {
     "_type": "choice",
-    "_value": ["20260525v2"]
+    "_value": ["20260528v1"]
   },
   "algorithm": {
     "_type": "choice",

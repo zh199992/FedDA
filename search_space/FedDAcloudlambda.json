@@ -1,7 +1,7 @@
 {
   "aim": {
     "_type": "choice",
-    "_value": ["FedPerwoEDSwith09EMAnewepoch"]
+    "_value": ["FedDAlambda"]
   },
   "train_ratio": {
     "_type": "choice",
@@ -9,7 +9,7 @@
   },
   "git_version": {
     "_type": "choice",
-    "_value": ["20260528v1"]
+    "_value": ["20260603v1"]
   },
   "algorithm": {
     "_type": "choice",
@@ -47,13 +47,11 @@
     "_type": "choice",
     "_value": [50]
   },
-  "local_epochs_group1": {
+  "local_epochs_combination": {
     "_type": "choice",
-    "_value": [60, 70, 80, 90, 100]
-  },
-  "local_epochs_group2": {
-    "_type": "choice",
-    "_value": [40, 50 ,60, 70, 80, 90, 100]
+    "_value": [
+      [70, 100]
+    ]
   },
   "server_epochs": {
     "_type": "choice",
@@ -65,7 +63,7 @@
   },
   "gamma": {
     "_type": "choice",
-    "_value": [0.8]
+    "_value": [0.99, 1]
   },
   "conv_init": {
     "_type": "choice",
@@ -97,7 +95,7 @@
   },
   "enable_cloud_da": {
     "_type": "choice",
-    "_value": ["false"]
+    "_value": ["true"]
   },
   "global_rounds_init": {
     "_type": "choice",

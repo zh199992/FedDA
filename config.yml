@@ -11,7 +11,7 @@ tuner:
     optimize_mode: minimize
 trainingService:
   platform: local
-  gpuIndices: [2]
+  gpuIndices: [3]
   maxTrialNumberPerGpu: 1
   useActiveGpu: True
 

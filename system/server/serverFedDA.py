@@ -267,9 +267,9 @@ class serverDA(Server):
                 self.writer.add_scalar('train/server_adv_normalized', adv_loss_normalized, global_step + i)
 
                 if self.DA_loss == 'mmd':
-                    total_loss = mmd_loss_normalized
+                    total_loss = mmd_loss
                 elif self.DA_loss == 'adv':
-                    total_loss = adv_loss_normalized
+                    total_loss = adv_loss
                 elif self.DA_loss == 'adv+mmd':
                     total_loss = self.gamma * adv_loss_normalized + (1-self.gamma) * mmd_loss_normalized
                     # total_loss = self.gamma * adv_loss + (1 - self.gamma) * mmd_loss  # gamma    (1-gamma

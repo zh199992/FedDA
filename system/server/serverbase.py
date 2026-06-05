@@ -7,6 +7,7 @@ import time
 import random
 from utils.data_utils import read_client_data  #为什么要另外写
 import torch.utils.tensorboard as tb
+import torch.nn.functional as F
 
 import nni
 from utils.root import find_project_root
@@ -102,12 +103,19 @@ class Server(object):
         self.rs_test_rmse=[]
         self.best_rmse=999
         self.client_best_loss=[999,999,999,999]
+        
         # ---------------------- Early Stopping Variables ----------------------
         self.early_stop = getattr(args, 'early_stop', False)         # 是否启用早停
         self.pretrain_early_stop = getattr(args, 'pretrain_early_stop', False)
         self.patience = 5              # 容忍多少轮不提升
         self.counter = 0                                             # 计数器
         self.early_stop_flag = False                                 # 是否触发早停
+        
+        # ---------------------- Per-Client Best Metrics Tracking ----------------------
+        self.client_best_metrics = {}  # {client_id: {'best_mae': float, 'best_mse': float, 
+                                       #             'best_score': float, 'best_rmse': float,
+                                       #             'mae_round': int, 'mse_round': int, 
+                                       #             'score_round': int, 'rmse_round': int}}
         # ----------------------------------------------------------------------
 
     @monitor_gpu_memory
@@ -159,36 +167,152 @@ class Server(object):
     @monitor_gpu_memory
     def evaluate(self, round):
         stats = self.test_metrics()
-        # total_test_loss = (torch.tensor([l*n for l,n in zip(stats[0],stats[1])])).sum()/(torch.tensor(stats[1]).sum())
-        #
-        # # print("Averaged Train Loss: {:.4f}".format(train_loss))
-        # print("Averaged Test loss: {:.4f}".format(torch.sqrt(total_test_loss)))
+        
+        # 初始化每个 client 的最佳指标跟踪
+        if not self.client_best_metrics:
+            for client in self.clients:
+                self.client_best_metrics[client.id] = {
+                    'best_mae': float('inf'),
+                    'best_mse': float('inf'),
+                    'best_score': float('inf'),
+                    'best_rmse': float('inf'),
+                    'mae_round': 0,
+                    'mse_round': 0,
+                    'score_round': 0,
+                    'rmse_round': 0
+                }
+        
+        # 记录每个 client 的详细指标
+        for i, client in enumerate(self.clients):
+            mse = stats[0][i].item()  # MSE loss
+            rmse = np.sqrt(mse)
+            score = stats[2][i].item()
+            num_samples = stats[1][i].item()
+            
+            # 计算 MAE (需要重新获取预测值)
+            mae = self._calculate_mae(client)
+            
+
+            
+            # 更新最佳指标
+            current_metrics = self.client_best_metrics[client.id]
+            
+            if mae < current_metrics['best_mae']:
+                current_metrics['best_mae'] = mae
+                current_metrics['mae_round'] = round
+                self._save_client_model(client, 'mae', round)
+            
+            if mse < current_metrics['best_mse']:
+                current_metrics['best_mse'] = mse
+                current_metrics['mse_round'] = round
+                self._save_client_model(client, 'mse', round)
+            
+            if score < current_metrics['best_score']:
+                current_metrics['best_score'] = score
+                current_metrics['score_round'] = round
+                self._save_client_model(client, 'score', round)
+            
+            if rmse < current_metrics['best_rmse']:
+                current_metrics['best_rmse'] = rmse
+                current_metrics['rmse_round'] = round
+                self._save_client_model(client, 'rmse', round)
+            
+            # 打印当前轮次每个 client 的指标
+            print(f"\n{'='*60}")
+            print(f"Client {client.id} - Round {round}")
+            print(f"{'='*60}")
+            print(f"Current Metrics:")
+            print(f"  MAE:    {mae:.4f}  | Best MAE:    {current_metrics['best_mae']:.4f} (Round {current_metrics['mae_round']})")
+            print(f"  MSE:    {mse:.4f}  | Best MSE:    {current_metrics['best_mse']:.4f} (Round {current_metrics['mse_round']})")
+            print(f"  RMSE:   {rmse:.4f} | Best RMSE:   {current_metrics['best_rmse']:.4f} (Round {current_metrics['rmse_round']})")
+            print(f"  SCORE:  {score:.4f} | Best SCORE:  {current_metrics['best_score']:.4f} (Round {current_metrics['score_round']})")
+            print(f"  Samples: {num_samples}")
+        
+        # 打印所有 client 的历史最优汇总
+        print(f"\n{'='*80}")
+        print(f"Historical Best Metrics Summary (Up to Round {round})")
+        print(f"{'='*80}")
+        print(f"{'Client':<10} {'Best MAE':<12} {'MAE Rd':<8} {'Best MSE':<12} {'MSE Rd':<8} {'Best RMSE':<12} {'RMSE Rd':<8} {'Best SCORE':<12} {'SCORE Rd':<8}")
+        print(f"{'-'*80}")
+        
+        for client_id, metrics in sorted(self.client_best_metrics.items()):
+            print(f"{client_id:<10} {metrics['best_mae']:<12.4f} {metrics['mae_round']:<8} "
+                  f"{metrics['best_mse']:<12.4f} {metrics['mse_round']:<8} "
+                  f"{metrics['best_rmse']:<12.4f} {metrics['rmse_round']:<8} "
+                  f"{metrics['best_score']:<12.4f} {metrics['score_round']:<8}")
+        print(f"{'='*80}\n")
+        
+        # 原有的平均损失计算逻辑
         for i in range(len(stats[0])):
             self.writer.add_scalar("test/round loss "+str(i+1), torch.sqrt(stats[0][i]), round)
             if torch.sqrt(stats[0][i])<self.client_best_loss[i]:#stats里是MSE
                 self.client_best_loss[i]=torch.sqrt(stats[0][i])
-        # nni.report_intermediate_result({"test/round loss 1": torch.sqrt(stats[0][0]).item(),
-        #                                 "test/round loss 2": torch.sqrt(stats[0][1]).item(),
-        #                                 "test/round loss 3": torch.sqrt(stats[0][2]).item() ,
-        #                                 "test/round loss 4": torch.sqrt(stats[0][3]).item()})
+                
         best_avg_test_loss = (torch.tensor([torch.square(l)*n for l,n in zip(self.client_best_loss,stats[1])])).sum()/(torch.tensor(stats[1]).sum())
         best_avg_test_loss=torch.sqrt(best_avg_test_loss)
         current_avg_test_loss = (torch.tensor([l*n for l,n in zip(stats[0],stats[1])])).sum()/(torch.tensor(stats[1]).sum())
         current_avg_test_loss=torch.sqrt(current_avg_test_loss)
-        # print("Averaged Train Loss: {:.4f}".format(train_loss))
+        
         print("best avg test loss: {:.4f}".format(best_avg_test_loss))
         self.writer.add_scalar("test/best average loss", best_avg_test_loss, round)
         nni.report_intermediate_result({"test/best average loss": best_avg_test_loss.item()})
         print("current avg test loss: {:.4f}".format(current_avg_test_loss))
         self.writer.add_scalar("test/current average loss", current_avg_test_loss, round)
-        # nni.report_intermediate_result({"test/average loss": torch.sqrt(stats[0][0]).item()})
-        # if self.test_avg_loss>torch.sqrt(total_test_loss).item():
+        
         self.test_avg_loss=best_avg_test_loss.item()
         self.rs_test_rmse.append(self.test_avg_loss)
         print("Test score:" ,stats[2])
-        # self.print_(test_acc, train_acc, train_loss)
-        # print("Std Test loss: {:.4f}".format(np.std(accs)))
-        # print("Std Test score: {:.4f}".format(np.std(aucs)))
+
+    @monitor_gpu_memory
+    def _calculate_mae(self, client):
+        """计算单个 client 的 MAE"""
+        x_list = []
+        y_list = []
+        
+        for x_batch, y_batch in client.testloader:
+            x_list.append(x_batch)
+            y_list.append(y_batch)
+        
+        if not x_list:
+            return 0.0
+        
+        x = torch.cat(x_list, dim=0)
+        y = torch.cat(y_list, dim=0)
+        
+        client.model.eval()
+        if hasattr(client, 'ema_model') and client.args.use_ema:
+            client.ema_model.eval()
+        
+        with torch.no_grad():
+            x = x.to(client.device)
+            y = y.to(client.device)
+            
+            if hasattr(client, 'ema_model') and client.args.use_ema:
+                output, _, _ = client.ema_model(x)
+            else:
+                output, _, _ = client.model(x)
+            
+            mae = F.l1_loss(output, y).item()
+        
+        return mae
+
+    @monitor_gpu_memory
+    def _save_client_model(self, client, metric_type, round):
+        """保存 client 的最佳模型"""
+        save_dir = os.path.join(self.graph_path, 'best_models')
+        os.makedirs(save_dir, exist_ok=True)
+        
+        model_path = os.path.join(save_dir, f'client{client.id}_best_{metric_type}_round{round}.pth')
+        
+        torch.save({
+            'client_id': client.id,
+            'round': round,
+            'metric_type': metric_type,
+            'model_state_dict': client.model.state_dict(),
+            'timestamp': time.strftime('%Y-%m-%d %H:%M:%S')
+        }, model_path)
+        
+        print(f"  ✓ Saved best {metric_type.upper()} model for Client {client.id} at Round {round}")
 
     @monitor_gpu_memory
     def test_metrics(self):

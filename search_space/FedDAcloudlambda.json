@@ -9,7 +9,7 @@
   },
   "git_version": {
     "_type": "choice",
-    "_value": ["20260604v1"]
+    "_value": ["20260605v1"]
   },
   "algorithm": {
     "_type": "choice",
@@ -17,7 +17,7 @@
   },
   "sub_algorithm": {
     "_type": "choice",
-    "_value": ["FedPer"]
+    "_value": ["FedDA"]
   },
   "fedeval": {
     "_type": "choice",
@@ -59,11 +59,11 @@
   },
   "DA_loss": {
     "_type": "choice",
-    "_value": ["adv+mmd"]
+    "_value": ["adv"]
   },
   "gamma": {
     "_type": "choice",
-    "_value": [0.95, 0.99]
+    "_value": [0.6]
   },
   "conv_init": {
     "_type": "choice",
